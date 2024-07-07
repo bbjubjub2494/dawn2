@@ -1,0 +1,6 @@
+
+[[dependencies]]
+name = "solady"
+version = "0.0.217"
+source = "https://soldeer-revisions.s3.amazonaws.com/solady/0_0_217_03-07-2024_14:46:29_solady.zip"
+checksum = "f2c2108c3a850b6c362e08d73554fc8bdab7a619ef16df4b00aaeea9b558f598"
