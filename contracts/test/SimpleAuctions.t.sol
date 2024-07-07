@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test, console} from "@forge-std-1.9.1/src/Test.sol";
 import {SimpleAuctions} from "src/SimpleAuctions.sol";
 import {Collection} from "src/Collection.sol";
-import {IERC721} from "forge-std/interfaces/IERC721.sol";
-import {IERC20} from "forge-std/interfaces/IERC20.sol";
+import {IERC721} from "@forge-std-1.9.1/src/interfaces/IERC721.sol";
+import {IERC20} from "@forge-std-1.9.1/src/interfaces/IERC20.sol";
 
 contract SimpleAuctionsTest is Test {
     SimpleAuctions auctions;

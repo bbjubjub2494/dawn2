@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {ERC721} from "solady/tokens/ERC721.sol";
+import {ERC721} from "@solady-0.0.217/src/tokens/ERC721.sol";
 
 contract Collection is ERC721 {
     function name() public pure override returns (string memory) {
