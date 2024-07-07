@@ -1,1 +1,2 @@
 @solady-0.0.217=dependencies/solady-0.0.217
+@forge-std-1.9.1=dependencies/forge-std-1.9.1
