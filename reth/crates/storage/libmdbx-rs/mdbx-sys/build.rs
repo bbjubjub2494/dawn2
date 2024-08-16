@@ -106,6 +106,8 @@ fn generate_bindings(mdbx: &Path, out_file: &Path) {
         .prepend_enum_name(false)
         .generate_comments(false)
         .formatter(Formatter::Rustfmt)
+        .clang_arg(format!("-I{}", env::var("LIBC_INCLUDE_DIR").unwrap()))
+        .clang_arg(format!("-I{}", env::var("GLIBC_INCLUDE_DIR").unwrap()))
         .generate()
         .expect("Unable to generate bindings");
     bindings.write_to_file(out_file).expect("Couldn't write bindings!");
