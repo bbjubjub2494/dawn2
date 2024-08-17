@@ -10,6 +10,8 @@ mkShell {
   name = "dawn2";
   packages = [
     pkgs.just
+    pkgs.pkg-config
+    pkgs.openssl.dev
     inputs.nixpkgs-staging-next.legacyPackages.${system}.cargo
   ];
 

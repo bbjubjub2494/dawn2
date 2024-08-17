@@ -1,0 +1,9 @@
+[package]
+name = "scenario"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+alloy = { version = "0.2.1", features = ["providers"] }
+eyre = "0.6.12"
+tokio = { version = "1.39.2", features = ["rt-multi-thread"] }
