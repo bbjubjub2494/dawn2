@@ -18,7 +18,7 @@ run: build-reth build-scenario
 
   run_scenario
 
-reth *args:
+reth *args: build-reth
   #!/usr/bin/env bash
   . lib.sh
   run_reth {{args}}
