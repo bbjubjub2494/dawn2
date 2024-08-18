@@ -1,24 +1,26 @@
 {
-  inputs,
-  pkgs,
-  lib,
   mkShell,
-  system,
+  just,
+  pkg-config,
+  openssl,
+  cargo,
+  llvmPackages,
+  glibc,
+  libclang,
   ...
 }:
 mkShell {
   name = "dawn2";
   packages = [
-    pkgs.just
-    pkgs.pkg-config
-    pkgs.openssl.dev
-    inputs.nixpkgs-staging-next.legacyPackages.${system}.cargo
-    inputs.nixpkgs-staging-next.legacyPackages.${system}.rust-analyzer
+    just
+    pkg-config
+    openssl.dev
+    cargo
   ];
 
   env = {
-    LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
-    GLIBC_INCLUDE_DIR = "${pkgs.glibc.dev}/include";
-    LIBC_INCLUDE_DIR = "${pkgs.libclang.lib}/lib/clang/17/include";
+    LIBCLANG_PATH = "${llvmPackages.libclang.lib}/lib";
+    GLIBC_INCLUDE_DIR = "${glibc.dev}/include";
+    LIBC_INCLUDE_DIR = "${libclang.lib}/lib/clang/18/include";
   };
 }

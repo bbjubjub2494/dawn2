@@ -55,36 +55,22 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 0,
-        "narHash": "sha256-+CHVZnTnIYRLYsARInHYoWkujzcRkLY/gXm3s5bE52o=",
-        "path": "/nix/store/7840m01bg4qkhh3kq6mlrsi3s352qkc1-source",
-        "type": "path"
+        "lastModified": 1723891200,
+        "narHash": "sha256-uljX21+D/DZgb9uEFFG2dkkQbPZN+ig4Z6+UCLWFVAk=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "a0d6390cb3e82062a35d0288979c45756e481f60",
+        "type": "github"
       },
       "original": {
         "id": "nixpkgs",
+        "ref": "nixpkgs-unstable",
         "type": "indirect"
-      }
-    },
-    "nixpkgs-staging-next": {
-      "locked": {
-        "lastModified": 1723788079,
-        "narHash": "sha256-Pk6+xaD39Fv4e4/KOMX0bX+oNks6zAxGVa4takFeFC8=",
-        "owner": "nixos",
-        "repo": "nixpkgs",
-        "rev": "1ec053a83e1d6711a5abd02bd948169c25697a04",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nixos",
-        "ref": "staging-next",
-        "repo": "nixpkgs",
-        "type": "github"
       }
     },
     "root": {
       "inputs": {
         "nixpkgs": "nixpkgs",
-        "nixpkgs-staging-next": "nixpkgs-staging-next",
         "snowfall-lib": "snowfall-lib"
       }
     },
