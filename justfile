@@ -18,6 +18,11 @@ run: build-reth build-scenario
 
   run_scenario
 
+reth *args:
+  #!/usr/bin/env bash
+  . lib.sh
+  run_reth {{args}}
+
 build-scenario: build-contracts
   cd scenario && cargo build
 
