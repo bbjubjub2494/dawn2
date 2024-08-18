@@ -59,6 +59,11 @@ In the prototype, it is used as a single-node proof-of-authority blockchain.
 Dependencies are [Foundry], [Cargo], OpenSSL (due to a Reth dependency).
 [Just] can be used to run the demo.
 
+# Copying
+
+All work is dual-licensed MIT and Apache 2:
+Reth by its contributors, the contracts by DEDIS, and the rest by me.
+
 [Bet23]: https://www.epfl.ch/labs/dedis/wp-content/uploads/2024/06/Bettens2023_FrontRunningProtection.pdf
 [Bet24]: https://blog.bbjubjub.fr/thesis.pdf
 [Reth]: https://github.com/paradigmxyz/reth/
