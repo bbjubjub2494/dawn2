@@ -2,15 +2,13 @@
 pragma solidity ^0.8.13;
 
 import {IERC721} from "@forge-std-1.9.1/src/interfaces/IERC721.sol";
-import {IERC20} from "@forge-std-1.9.1/src/interfaces/IERC20.sol";
 
 // common code for Simple- and OvercollateralizedAuctions
-abstract contract Auctions {
+interface Auctions {
     // In case of SimpleAuction, revealDeadline = commitDeadline and maxBid = type(uint256).max
     struct Auction {
         IERC721 collection;
         uint256 tokenId;
-        IERC20 bidToken;
         address proceedsReceiver;
         uint64 opening; // block after which commits are accepted
         uint64 commitDeadline; // last block where commits can bet included
@@ -28,12 +26,10 @@ abstract contract Auctions {
     event Commit(uint256 auctionId);
     event Reveal(uint256 auctionId);
 
-    Auction[] public auctions;
-
-    function startAuction(IERC721 collection, uint256 tokenId, IERC20 bidToken, address proceedsReceiver)
+    function startAuction(IERC721 collection, uint256 tokenId, address proceedsReceiver)
         external
-        virtual
+        payable
         returns (uint256 auctionId);
 
-    function settle(uint256 auctionId) external virtual;
+    function settle(uint256 auctionId) external;
 }
