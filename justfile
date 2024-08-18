@@ -9,8 +9,8 @@ run: build-reth build-scenario
   producer_datadir=$tempdir/producer
   mkdir -p $producer_datadir
   
-  tmux splitw -hd "$RETH" -vvv node --datadir "$producer_datadir" --dev &
-  
+  tmux splitw -hd "$RETH" -vvv node --datadir "$producer_datadir" --dev --ws --dev.block-time 1s
+
   # wait for geth to start
   while ! cast block-number 2> /dev/null; do
   	sleep 1

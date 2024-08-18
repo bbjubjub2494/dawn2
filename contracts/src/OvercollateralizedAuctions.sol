@@ -7,6 +7,19 @@ import {SafeTransferLib} from "@solady-0.0.217/src/utils/SafeTransferLib.sol";
 import {Auctions} from "./Auctions.sol";
 
 contract OvercollateralizedAuctions is Auctions {
+    struct Auction {
+        IERC721 collection;
+        uint256 tokenId;
+        address proceedsReceiver;
+        uint64 opening; // block after which commits are accepted
+        uint64 commitDeadline; // last block where commits can bet included
+        uint64 revealDeadline; // last block where reveals can be included
+        uint256 maxBid;
+        uint256 highestAmount;
+        address highestBidder;
+        mapping(address => bytes32) commits;
+    }
+
     uint64 immutable blockDelay;
     Auction[] public auctions;
 
@@ -40,7 +53,15 @@ contract OvercollateralizedAuctions is Auctions {
         auction.highestAmount = amount;
         require(msg.value == amount);
 
-        emit AuctionStarted(auctionId);
+        emit AuctionStarted(
+            auctionId,
+            address(collection),
+            tokenId,
+            auction.opening,
+            auction.commitDeadline,
+            auction.revealDeadline,
+            proceedsReceiver
+        );
     }
 
     function computeCommitment(bytes32 blinding, address bidder, uint256 amount) public pure returns (bytes32 commit) {

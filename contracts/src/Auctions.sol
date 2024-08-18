@@ -5,21 +5,16 @@ import {IERC721} from "@forge-std-1.9.1/src/interfaces/IERC721.sol";
 
 // common code for Simple- and OvercollateralizedAuctions
 interface Auctions {
-    // In case of SimpleAuction, revealDeadline = commitDeadline and maxBid = type(uint256).max
-    struct Auction {
-        IERC721 collection;
-        uint256 tokenId;
-        address proceedsReceiver;
-        uint64 opening; // block after which commits are accepted
-        uint64 commitDeadline; // last block where commits can bet included
-        uint64 revealDeadline; // last block where reveals can be included
-        uint256 maxBid;
-        uint256 highestAmount;
-        address highestBidder;
-        mapping(address => bytes32) commits;
-    }
-
-    event AuctionStarted(uint256 auctionId);
+    // In case of SimpleAuction, revealDeadline = commitDeadline
+    event AuctionStarted(
+        uint256 auctionId,
+        address indexed collection,
+        uint256 tokenId,
+        uint64 opening,
+        uint64 commitDeadline,
+        uint64 revealDeadline,
+        address proceedsReceiver
+    );
 
     // must be emitted once when a bid is committed/revealed
     // SimpleAuction must emit both

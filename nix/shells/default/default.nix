@@ -13,6 +13,7 @@ mkShell {
     pkgs.pkg-config
     pkgs.openssl.dev
     inputs.nixpkgs-staging-next.legacyPackages.${system}.cargo
+    inputs.nixpkgs-staging-next.legacyPackages.${system}.rust-analyzer
   ];
 
   env = {

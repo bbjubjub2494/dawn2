@@ -7,6 +7,16 @@ import {SafeTransferLib} from "@solady-0.0.217/src/utils/SafeTransferLib.sol";
 import {Auctions} from "./Auctions.sol";
 
 contract SimpleAuctions is Auctions {
+    struct Auction {
+        IERC721 collection;
+        uint256 tokenId;
+        address proceedsReceiver;
+        uint64 opening; // block after which bids are accepted
+        uint64 deadline; // last block where bids can be included
+        uint256 highestAmount;
+        address highestBidder;
+    }
+
     uint64 immutable blockDelay;
     Auction[] public auctions;
 
@@ -28,9 +38,7 @@ contract SimpleAuctions is Auctions {
         auction.tokenId = tokenId;
         auction.proceedsReceiver = proceedsReceiver;
         auction.opening = uint64(block.number) + blockDelay + 1;
-        auction.commitDeadline = auction.opening + blockDelay;
-        auction.revealDeadline = auction.commitDeadline;
-        auction.maxBid = type(uint256).max;
+        auction.deadline = auction.opening + blockDelay;
 
         collection.transferFrom(msg.sender, address(this), auction.tokenId);
 
@@ -40,7 +48,15 @@ contract SimpleAuctions is Auctions {
         auction.highestAmount = amount;
         require(msg.value == amount);
 
-        emit AuctionStarted(auctionId);
+        emit AuctionStarted(
+            auctionId,
+            address(collection),
+            tokenId,
+            auction.opening,
+            auction.deadline,
+            auction.deadline,
+            proceedsReceiver
+        );
     }
 
     function bid(uint256 auctionId) external payable {
@@ -48,7 +64,7 @@ contract SimpleAuctions is Auctions {
         uint256 amount = msg.value;
 
         require(block.number > auction.opening, "early");
-        require(block.number <= auction.commitDeadline, "late");
+        require(block.number <= auction.deadline, "late");
 
         if (amount > auction.highestAmount) {
             address prevHighestBidder = auction.highestBidder;
@@ -64,7 +80,7 @@ contract SimpleAuctions is Auctions {
     function settle(uint256 auctionId) external override {
         Auction storage auction = auctions[auctionId];
 
-        require(block.number > auction.revealDeadline, "early");
+        require(block.number > auction.deadline, "early");
         require(address(auction.collection) != address(0));
 
         SafeTransferLib.safeTransferETH(auction.proceedsReceiver, auction.highestAmount);
