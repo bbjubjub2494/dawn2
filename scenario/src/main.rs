@@ -1,8 +1,9 @@
 use alloy::network::EthereumWallet;
 use alloy::primitives::*;
-use alloy::providers::{Provider, ProviderBuilder, WsConnect};
+use alloy::providers::{Network, Provider, ProviderBuilder, WsConnect};
 use alloy::signers::local::{coins_bip39::English, MnemonicBuilder};
 use alloy::sol;
+use alloy::transports::Transport;
 use eyre::Result;
 
 use futures_util::StreamExt;
@@ -33,20 +34,21 @@ fn derive_key(index: u32) -> Result<(EthereumWallet, Address)> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let rpc_url = std::env::var("ETH_RPC_URL")?.parse()?;
     let (deployer_wallet, deployer_address) = derive_key(0)?;
     let provider = &ProviderBuilder::new()
         .with_recommended_fillers()
         .wallet(deployer_wallet)
-        .on_http(rpc_url);
+        .on_ws(WsConnect::new("ws://localhost:8546"))
+        .await?;
 
     // Deploy the contract.
     let block_delay = 2;
     let auctions = SimpleAuctions::deploy(provider, block_delay).await?;
-    dbg!(auctions.address());
-
     let collection = Collection::deploy(provider).await?;
-    dbg!(collection.address());
+
+    let bidders = (1..20)
+        .map(|i| tokio::spawn(bidder_script(*auctions.address(), *collection.address(), i)))
+        .collect::<Vec<_>>();
 
     collection
         .approve(*auctions.address(), U256::from(1))
@@ -63,7 +65,18 @@ async fn main() -> Result<()> {
         .await?;
     dbg!(r);
 
-    tokio::spawn(bidder_script(*auctions.address(), *collection.address(), 1)).await??;
+    wait_for_block(provider, 30).await?; // FIXME: decode block number from receipt
+    let auction_id = U256::from(0); // FIXME
+    auctions
+        .settle(auction_id)
+        .send()
+        .await?
+        .get_receipt()
+        .await?;
+
+    for bidder in bidders {
+        bidder.await??;
+    }
 
     Ok(())
 }
@@ -81,7 +94,7 @@ async fn bidder_script(
         .await?;
 
     let auctions = SimpleAuctions::new(auctions_address, provider);
-    let collection = Collection::new(auctions_address, provider);
+    let collection = Collection::new(collection_address, provider);
 
     let (auction_id, opening) = {
         let auction_filter = auctions.AuctionStarted_filter().watch().await?;
@@ -93,16 +106,7 @@ async fn bidder_script(
         (info.auctionId, info.opening)
     };
 
-    {
-        let subscription = provider.subscribe_blocks().await?;
-        let mut stream = subscription.into_stream();
-
-        while let Some(block) = stream.next().await {
-            if block.header.number > Some(opening) {
-                break;
-            }
-        }
-    }
+    wait_for_block(provider, opening).await?;
 
     let r = auctions
         .bid(auction_id)
@@ -113,5 +117,20 @@ async fn bidder_script(
         .await?;
     dbg!(r);
 
+    Ok(())
+}
+
+async fn wait_for_block<T: Transport + Clone, N: Network>(
+    provider: &impl Provider<T, N>,
+    opening: u64,
+) -> Result<()> {
+    let subscription = provider.subscribe_blocks().await?;
+    let mut stream = subscription.into_stream();
+
+    while let Some(block) = stream.next().await {
+        if block.header.number > Some(opening) {
+            break;
+        }
+    }
     Ok(())
 }
