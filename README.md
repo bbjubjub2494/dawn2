@@ -47,14 +47,14 @@ This is defense in-depth against copy attacks.
 
 # Implementation
 
-TODO trusted execution environment
-
 `reth/` is a fork of [Reth] modified to support encryption and delayed execution.
 In the prototype, it is used as a single-node proof-of-authority blockchain.
 
 `contracts/` contains EVM smart contracts to perform auctions.
 
 `scenario/` contains Rust scripts that simulate an auction with many bidders.
+
+`sgx/` performs SMC duties inside of an Intel SGX enclave.
 
 Dependencies are [Foundry], [Cargo], OpenSSL (due to a Reth dependency).
 [Just] can be used to run the demo.

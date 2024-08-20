@@ -1,0 +1,14 @@
+[package]
+name = "dawn_sgx"
+version = "1.0.0"
+
+[lib]
+name = "dawn_sgx_enclave"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }

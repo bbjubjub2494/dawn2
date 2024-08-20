@@ -31,3 +31,6 @@ build-reth:
 
 build-contracts:
   cd contracts && forge build
+
+build-sgx:
+  cd sgx && make
