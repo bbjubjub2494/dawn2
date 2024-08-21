@@ -1,33 +1,58 @@
 use crate::hash_to_g1;
 use bls12_381::multi_miller_loop;
 use bls12_381::pairing;
-use bls12_381::{G1Affine, G2Affine, G2Prepared, G2Projective, Gt, Scalar};
+use bls12_381::{G1Affine, G2Affine, G2Prepared, Gt, Scalar};
 use ff::Field;
 use group::Group;
 
 use rand::rngs::OsRng;
 
-pub fn share(label: &[u8], ek: G2Projective) -> (G2Affine, Gt) {
+#[derive(Debug)]
+pub struct MasterPublicKey(G2Affine);
+#[derive(Debug)]
+pub struct MasterPrivateKey(Scalar);
+#[derive(Debug)]
+pub struct EpheremalPublicKey(G2Affine);
+#[derive(Debug, PartialEq, Eq)]
+pub struct SharedSecret(Gt);
+#[derive(Debug)]
+pub struct DecryptionKey(G1Affine);
+
+impl SharedSecret {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        // FIXME: bls12_381 does not expose a way to serialize Gt
+        // We use the debug output but this is idiosyncratic
+        format!("{}", self.0).into()
+    }
+}
+
+pub fn generate() -> (MasterPublicKey, MasterPrivateKey) {
+    let sk = Scalar::random(&mut OsRng);
+    let pk = G2Affine::generator() * sk;
+    (MasterPublicKey(pk.into()), MasterPrivateKey(sk))
+}
+
+pub fn share(label: &[u8], mpk: &MasterPublicKey) -> (EpheremalPublicKey, SharedSecret) {
     let r = Scalar::random(&mut OsRng);
-    let u = G2Affine::generator() * r;
-    let s = pairing(&hash_to_g1::hash_to_g1(label), &ek.into()) * r;
-    (u.into(), s)
+    let u = r * G2Affine::generator();
+    let s = pairing(&hash_to_g1::hash_to_g1(label), &mpk.0) * r;
+    (EpheremalPublicKey(u.into()), SharedSecret(s))
 }
 
-pub fn reveal(label: &[u8], sk: Scalar) -> G1Affine {
-    let σ = hash_to_g1::hash_to_g1(label) * sk;
-    σ.into()
+pub fn reveal(label: &[u8], sk: &MasterPrivateKey) -> DecryptionKey {
+    let dk = hash_to_g1::hash_to_g1(label) * sk.0;
+    DecryptionKey(dk.into())
 }
 
-pub fn recover(u: &G2Affine, σ: &G1Affine) -> Gt {
-    pairing(σ, u)
+pub fn recover(u: &EpheremalPublicKey, dk: &DecryptionKey) -> SharedSecret {
+    SharedSecret(pairing(&dk.0, &u.0))
 }
 
-pub fn verify(label: &[u8], ek: G2Projective, σ: G1Affine) -> bool {
+pub fn verify(label: &[u8], mpk: &MasterPublicKey, dk: &DecryptionKey) -> bool {
     fast_pairing_equality(
         &hash_to_g1::hash_to_g1(label),
-        &ek.into(),
-        &σ,
+        &mpk.0,
+        &dk.0,
         &G2Affine::generator(),
     )
 }
@@ -59,20 +84,18 @@ mod tests {
     #[test]
     fn test_encapsulate_reveal() {
         let label = b"test";
-        let sk = Scalar::random(&mut OsRng);
-        let ek = G2Affine::generator() * sk;
-        let (u, s) = share(label, ek);
-        let σ = reveal(label, sk);
-        let s_prime = recover(&u, &σ);
+        let (mpk, msk) = generate();
+        let (u, s) = share(label, &mpk);
+        let dk = reveal(label, &msk);
+        let s_prime = recover(&u, &dk);
         assert_eq!(s, s_prime);
     }
 
     #[test]
     fn test_verify() {
         let label = b"test";
-        let sk = Scalar::random(&mut OsRng);
-        let ek = G2Affine::generator() * sk;
-        let σ = reveal(label, sk);
-        assert!(verify(label, ek, σ));
+        let (mpk, msk) = generate();
+        let dk = reveal(label, &msk);
+        assert!(verify(label, &mpk, &dk));
     }
 }
