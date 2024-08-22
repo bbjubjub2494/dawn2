@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/dfinity/bls12_381
+	branch = main
+	commit = 6b64cd155844c7b421036ac59815d26363f543aa
+	parent = 711f475fcfe23bc89cc6484dfcac587d48150d30
+	method = merge
+	cmdver = 0.4.6
