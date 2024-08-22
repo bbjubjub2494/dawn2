@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/bbjubjub2494/cbor-sgx
+	branch = master
+	commit = 3a8b14ca83e5d9b54dd274565bb0b5cc23ffdd7a
+	parent = daaefadbe4d1b67beab075136d9c171943964ca5
+	method = merge
+	cmdver = 0.4.6
