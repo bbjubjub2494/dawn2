@@ -1,7 +1,7 @@
 use crate::hash_to_g1;
-use bls12_381::multi_miller_loop;
-use bls12_381::pairing;
-use bls12_381::{G1Affine, G2Affine, G2Prepared, Gt, Scalar};
+use ic_bls12_381::multi_miller_loop;
+use ic_bls12_381::pairing;
+use ic_bls12_381::{G1Affine, G2Affine, G2Prepared, Gt, Scalar};
 use ff::Field;
 use group::Group;
 
@@ -19,10 +19,8 @@ pub struct SharedSecret(Gt);
 pub struct DecryptionKey(G1Affine);
 
 impl SharedSecret {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        // FIXME: bls12_381 does not expose a way to serialize Gt
-        // We use the debug output but this is idiosyncratic
-        format!("{}", self.0).into()
+    pub fn to_bytes(&self) -> [u8; 576] {
+        self.0.to_bytes()
     }
 }
 

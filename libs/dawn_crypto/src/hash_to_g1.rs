@@ -1,4 +1,4 @@
-use bls12_381::{
+use ic_bls12_381::{
     hash_to_curve::{ExpandMsgXmd, HashToCurve},
     G1Affine, G1Projective,
 };
