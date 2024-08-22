@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/bbjubjub2494/serde-sgx
+	branch = master
+	commit = 57c5b9ccc72cc10fdcddf3f0149c5ccc3480b8da
+	parent = a0ed79a028fb74030f583da2c0cfa04e1cc4bbc9
+	method = merge
+	cmdver = 0.4.6
