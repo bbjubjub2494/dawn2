@@ -1,13 +1,25 @@
+#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(
+    all(target_env = "sgx", target_vendor = "mesalock"),
+    feature(rustc_private)
+)]
+
+#[cfg(not(target_env = "sgx"))]
+#[macro_use]
+extern crate sgx_tstd as std;
+
 mod encapsulate;
 mod hash_to_g1;
 mod symmetric;
 
 use sha2::{Digest, Sha256};
 
+use std::vec::Vec;
+
 pub use encapsulate::*;
 
 pub struct Ciphertext {
-    u: EpheremalPublicKey,
+    u: EphemeralPublicKey,
     payload: Vec<u8>,
     tag: [u8; symmetric::TAG_SIZE],
 }

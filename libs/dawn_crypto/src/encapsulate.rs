@@ -1,22 +1,51 @@
 use crate::hash_to_g1;
+use group::Group;
 use ic_bls12_381::multi_miller_loop;
 use ic_bls12_381::pairing;
 use ic_bls12_381::{G1Affine, G2Affine, G2Prepared, Gt, Scalar};
-use ff::Field;
-use group::Group;
 
-use rand::rngs::OsRng;
+use serde::{Deserialize, Serialize};
+use sgx_rand::os::SgxRng;
 
-#[derive(Debug)]
-pub struct MasterPublicKey(G2Affine);
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MasterPublicKey([u8; 96]);
+
+impl MasterPublicKey {
+    pub fn unpack(&self) -> G2Affine {
+        G2Affine::from_compressed(&self.0).unwrap()
+    }
+    pub fn pack(e: &G2Affine) -> Self {
+        Self(e.to_compressed())
+    }
+}
+
 #[derive(Debug)]
 pub struct MasterPrivateKey(Scalar);
-#[derive(Debug)]
-pub struct EpheremalPublicKey(G2Affine);
+
+impl MasterPrivateKey {
+    pub fn to_bytes(&self) -> [u8; 32] {
+        self.0.to_bytes()
+    }
+
+    pub fn from_bytes(bytes: [u8; 32]) -> Self {
+        Self(Scalar::from_bytes(&bytes).unwrap())
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EphemeralPublicKey([u8; 96]);
+
+impl EphemeralPublicKey {
+    pub fn unpack(&self) -> G2Affine {
+        G2Affine::from_compressed(&self.0).unwrap()
+    }
+    pub fn pack(e: &G2Affine) -> Self {
+        Self(e.to_compressed())
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct SharedSecret(Gt);
-#[derive(Debug)]
-pub struct DecryptionKey(G1Affine);
 
 impl SharedSecret {
     pub fn to_bytes(&self) -> [u8; 576] {
@@ -24,33 +53,47 @@ impl SharedSecret {
     }
 }
 
-pub fn generate() -> (MasterPublicKey, MasterPrivateKey) {
-    let sk = Scalar::random(&mut OsRng);
-    let pk = G2Affine::generator() * sk;
-    (MasterPublicKey(pk.into()), MasterPrivateKey(sk))
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DecryptionKey([u8; 48]);
+
+impl DecryptionKey {
+    pub fn unpack(&self) -> G1Affine {
+        G1Affine::from_compressed(&self.0).unwrap()
+    }
+    pub fn pack(e: &G1Affine) -> Self {
+        Self(e.to_compressed())
+    }
 }
 
-pub fn share(label: &[u8], mpk: &MasterPublicKey) -> (EpheremalPublicKey, SharedSecret) {
-    let r = Scalar::random(&mut OsRng);
-    let u = r * G2Affine::generator();
-    let s = pairing(&hash_to_g1::hash_to_g1(label), &mpk.0) * r;
-    (EpheremalPublicKey(u.into()), SharedSecret(s))
+pub fn generate() -> (MasterPublicKey, MasterPrivateKey) {
+    let rng = SgxRng::new().unwrap();
+    let sk = Scalar::random(rng);
+    let pk = G2Affine::generator() * sk;
+    (MasterPublicKey::pack(&pk.into()), MasterPrivateKey(sk))
+}
+
+pub fn share(label: &[u8], mpk: &MasterPublicKey) -> (EphemeralPublicKey, SharedSecret) {
+    let rng = SgxRng::new().unwrap();
+    let r = Scalar::random(rng);
+    let u: G2Affine = (r * G2Affine::generator()).into();
+    let s = pairing(&hash_to_g1::hash_to_g1(label), &mpk.unpack()) * r;
+    (EphemeralPublicKey::pack(&u.into()), SharedSecret(s))
 }
 
 pub fn reveal(label: &[u8], sk: &MasterPrivateKey) -> DecryptionKey {
     let dk = hash_to_g1::hash_to_g1(label) * sk.0;
-    DecryptionKey(dk.into())
+    DecryptionKey::pack(&dk.into())
 }
 
-pub fn recover(u: &EpheremalPublicKey, dk: &DecryptionKey) -> SharedSecret {
-    SharedSecret(pairing(&dk.0, &u.0))
+pub fn recover(u: &EphemeralPublicKey, dk: &DecryptionKey) -> SharedSecret {
+    SharedSecret(pairing(&dk.unpack(), &u.unpack()))
 }
 
 pub fn verify(label: &[u8], mpk: &MasterPublicKey, dk: &DecryptionKey) -> bool {
     fast_pairing_equality(
         &hash_to_g1::hash_to_g1(label),
-        &mpk.0,
-        &dk.0,
+        &mpk.unpack(),
+        &dk.unpack(),
         &G2Affine::generator(),
     )
 }

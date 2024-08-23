@@ -27,11 +27,9 @@
 )
 
 
-typedef struct ms_say_something_t {
+typedef struct ms_handle_t {
 	sgx_status_t ms_retval;
-	const uint8_t* ms_some_string;
-	size_t ms_len;
-} ms_say_something_t;
+} ms_handle_t;
 
 typedef struct ms_t_global_init_ecall_t {
 	uint64_t ms_id;
@@ -554,58 +552,29 @@ typedef struct ms_sgx_thread_set_multiple_untrusted_events_ocall_t {
 	size_t ms_total;
 } ms_sgx_thread_set_multiple_untrusted_events_ocall_t;
 
-static sgx_status_t SGX_CDECL sgx_say_something(void* pms)
+static sgx_status_t SGX_CDECL sgx_handle(void* pms)
 {
-	CHECK_REF_POINTER(pms, sizeof(ms_say_something_t));
+	CHECK_REF_POINTER(pms, sizeof(ms_handle_t));
 	//
 	// fence after pointer checks
 	//
 	sgx_lfence();
-	ms_say_something_t* ms = SGX_CAST(ms_say_something_t*, pms);
-	ms_say_something_t __in_ms;
-	if (memcpy_s(&__in_ms, sizeof(ms_say_something_t), ms, sizeof(ms_say_something_t))) {
+	ms_handle_t* ms = SGX_CAST(ms_handle_t*, pms);
+	ms_handle_t __in_ms;
+	if (memcpy_s(&__in_ms, sizeof(ms_handle_t), ms, sizeof(ms_handle_t))) {
 		return SGX_ERROR_UNEXPECTED;
 	}
 	sgx_status_t status = SGX_SUCCESS;
-	const uint8_t* _tmp_some_string = __in_ms.ms_some_string;
-	size_t _tmp_len = __in_ms.ms_len;
-	size_t _len_some_string = _tmp_len;
-	uint8_t* _in_some_string = NULL;
 	sgx_status_t _in_retval;
 
-	CHECK_UNIQUE_POINTER(_tmp_some_string, _len_some_string);
 
-	//
-	// fence after pointer checks
-	//
-	sgx_lfence();
-
-	if (_tmp_some_string != NULL && _len_some_string != 0) {
-		if ( _len_some_string % sizeof(*_tmp_some_string) != 0)
-		{
-			status = SGX_ERROR_INVALID_PARAMETER;
-			goto err;
-		}
-		_in_some_string = (uint8_t*)malloc(_len_some_string);
-		if (_in_some_string == NULL) {
-			status = SGX_ERROR_OUT_OF_MEMORY;
-			goto err;
-		}
-
-		if (memcpy_s(_in_some_string, _len_some_string, _tmp_some_string, _len_some_string)) {
-			status = SGX_ERROR_UNEXPECTED;
-			goto err;
-		}
-
-	}
-	_in_retval = say_something((const uint8_t*)_in_some_string, _tmp_len);
+	_in_retval = handle();
 	if (memcpy_verw_s(&ms->ms_retval, sizeof(ms->ms_retval), &_in_retval, sizeof(_in_retval))) {
 		status = SGX_ERROR_UNEXPECTED;
 		goto err;
 	}
 
 err:
-	if (_in_some_string) free(_in_some_string);
 	return status;
 }
 
@@ -673,7 +642,7 @@ SGX_EXTERNC const struct {
 } g_ecall_table = {
 	3,
 	{
-		{(void*)(uintptr_t)sgx_say_something, 0, 0},
+		{(void*)(uintptr_t)sgx_handle, 0, 0},
 		{(void*)(uintptr_t)sgx_t_global_init_ecall, 0, 0},
 		{(void*)(uintptr_t)sgx_t_global_exit_ecall, 0, 0},
 	}

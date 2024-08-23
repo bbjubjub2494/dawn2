@@ -34,3 +34,6 @@ build-contracts:
 
 build-sgx:
   cd sgx && make
+
+run-sgx: build-sgx
+  cd sgx/bin && ./app

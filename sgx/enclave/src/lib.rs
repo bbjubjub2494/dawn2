@@ -17,62 +17,66 @@
 
 #![crate_name = "dawn_sgx_enclave"]
 #![crate_type = "staticlib"]
-
-#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![no_std]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
+extern crate sgx_tseal;
 extern crate sgx_types;
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
+extern crate dawn_enclave_protocol;
+use dawn_enclave_protocol::{Request, Response};
+use sgx_tseal::SgxSealedData;
 use sgx_types::*;
-use std::string::String;
+use std::io;
 use std::vec::Vec;
-use std::slice;
-use std::io::{self, Write};
 
-/// A function simply invokes ocall print to print the incoming string
-///
-/// # Parameters
-///
-/// **some_string**
-///
-/// A pointer to the string to be printed
-///
-/// **len**
-///
-/// An unsigned int indicates the length of str
-///
-/// # Return value
-///
-/// Always returns SGX_SUCCESS
 #[no_mangle]
-pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_status_t {
-
-    let str_slice = unsafe { slice::from_raw_parts(some_string, some_len) };
-    let _ = io::stdout().write(str_slice);
-
-    // A sample &'static string
-    let rust_raw_string = "This is a ";
-    // An array
-    let word:[u8;4] = [82, 117, 115, 116];
-    // An vector
-    let word_vec:Vec<u8> = vec![32, 115, 116, 114, 105, 110, 103, 33];
-
-    // Construct a string from &'static string
-    let mut hello_string = String::from(rust_raw_string);
-
-    // Iterate on word array
-    for c in word.iter() {
-        hello_string.push(*c as char);
-    }
-
-    // Rust style convertion
-    hello_string += String::from_utf8(word_vec).expect("Invalid UTF-8")
-                                               .as_str();
-
-    // Ocall to normal world for output
-    println!("{}", &hello_string);
+pub extern "C" fn handle() -> sgx_status_t {
+    let request: Request = serde_cbor::from_reader(io::stdin()).unwrap();
+    let response = match request {
+        Request::Generate() => {
+            let (mpk, msk) = dawn_crypto::generate();
+            let aad = b"";
+            let data = msk.to_bytes();
+            let sealed_data = SgxSealedData::<[u8; 32]>::seal_data(aad, &data).unwrap();
+            let raw = to_raw_sealed_data(&sealed_data);
+            Response::Generate(mpk, dawn_enclave_protocol::SealedMasterPrivateKey(raw))
+        }
+        Request::Reveal(label, mut smpk) => {
+            let sealed_data = from_raw_sealed_data(&mut smpk.0).unwrap();
+            let msk = dawn_crypto::MasterPrivateKey::from_bytes(
+                *sealed_data.unseal_data().unwrap().decrypt,
+            );
+            let dk = dawn_crypto::reveal(&label, &msk);
+            Response::Reveal(dk)
+        }
+    };
+    serde_cbor::to_writer(io::stdout(), &response).unwrap();
 
     sgx_status_t::SGX_SUCCESS
+}
+
+fn to_raw_sealed_data(sealed_data: &SgxSealedData<[u8; 32]>) -> Vec<u8> {
+    let len = SgxSealedData::<[u8; 32]>::calc_raw_sealed_data_size(
+        sealed_data.get_add_mac_txt_len(),
+        sealed_data.get_encrypt_txt_len(),
+    );
+    let mut buf = vec![0; len as usize];
+    unsafe {
+        sealed_data
+            .to_raw_sealed_data_t(buf.as_mut_ptr() as *mut sgx_sealed_data_t, len)
+            .unwrap();
+    }
+    buf
+}
+
+fn from_raw_sealed_data(raw: &mut [u8]) -> Option<SgxSealedData<[u8; 32]>> {
+    unsafe {
+        SgxSealedData::<[u8; 32]>::from_raw_sealed_data_t(
+            raw.as_mut_ptr() as *mut sgx_sealed_data_t,
+            raw.len() as u32,
+        )
+    }
 }

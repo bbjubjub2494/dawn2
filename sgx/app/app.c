@@ -147,7 +147,6 @@ int initialize_enclave(void)
         print_error_message(ret);
         return -1;
     }
-    printf("[+] global_eid: %ld\n", global_eid);
     return 0;
 }
 
@@ -162,18 +161,10 @@ int SGX_CDECL main(int argc, char *argv[])
 
     /* Initialize the enclave */
     if(initialize_enclave() < 0){
-        printf("Enter a character before exit ...\n");
-        getchar();
         return -1;
     }
 
-    const char* str = "This is normal world string passed into enclave!\n";
-    size_t len = strlen(str);
-
-    sgx_ret = say_something(global_eid,
-                            &enclave_ret,
-                            (const uint8_t *) str,
-                            len);
+    sgx_ret = handle(global_eid, &enclave_ret);
 
     if(sgx_ret != SGX_SUCCESS) {
         print_error_message(sgx_ret);
@@ -184,8 +175,6 @@ int SGX_CDECL main(int argc, char *argv[])
         print_error_message(enclave_ret);
         return -1;
     }
-
-    printf("[+] say_something success ...\n");
 
     /* Destroy the enclave */
     sgx_destroy_enclave(global_eid);

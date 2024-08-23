@@ -36,6 +36,7 @@ required-features = ["experimental"]
 [dependencies.digest]
 version = "0.10"
 optional = true
+default-features = false # no std
 
 [dependencies.ff]
 version = "0.13"
@@ -71,3 +72,6 @@ pairings = ["groups", "pairing"]
 alloc = ["group/alloc"]
 experimental = ["digest"]
 nightly = ["subtle/nightly"]
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_rand = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.6" }

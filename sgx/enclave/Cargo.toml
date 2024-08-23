@@ -9,6 +9,18 @@ crate-type = ["staticlib"]
 [features]
 default = []
 
+
+[dependencies]
+serde = { path = "../../libs/serde-sgx/serde" }
+serde_cbor = { path = "../../libs/cbor-sgx" }
+
+[dependencies.dawn_crypto]
+path = "../../libs/dawn_crypto"
+
+[dependencies.dawn_enclave_protocol]
+path = "../../libs/dawn_enclave_protocol"
+
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
-sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.6" }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.6" }
+sgx_tseal = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.6" }

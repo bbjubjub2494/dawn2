@@ -625,6 +625,13 @@ impl Scalar {
 
         Scalar([d0 & mask, d1 & mask, d2 & mask, d3 & mask])
     }
+
+    /// Returns an uniformly random `Scalar` in an SGX environment.
+    pub fn random(mut rng: impl sgx_rand::Rng) -> Self {
+        let mut buf = [0; 64];
+        rng.fill_bytes(&mut buf);
+        Self::from_bytes_wide(&buf)
+    }
 }
 
 impl From<Scalar> for [u8; 32] {
