@@ -31,10 +31,11 @@ pub fn decrypt(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::{thread_rng, Rng};
 
     #[test]
+    #[cfg(feature = "std")]
     fn roundtrip() {
+        use rand::{thread_rng, Rng};
         let mut rng = thread_rng();
         let key = rng.gen();
         let mut buf = [0; 40];

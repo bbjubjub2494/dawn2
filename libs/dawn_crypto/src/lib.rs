@@ -1,12 +1,21 @@
-#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(feature = "mesalock_sgx", no_std)]
 #![cfg_attr(
     all(target_env = "sgx", target_vendor = "mesalock"),
     feature(rustc_private)
 )]
 
-#[cfg(not(target_env = "sgx"))]
-#[macro_use]
+#[cfg(feature = "mesalock_sgx")]
 extern crate sgx_tstd as std;
+
+#[cfg(feature = "mesalock_sgx")]
+extern crate ic_bls12_381_sgx as ic_bls12_381;
+
+#[cfg(all(not(feature = "no_mesalock_sgx"), not(feature = "mesalock_sgx")))]
+compile_error!("one of feature \"no_mesalock_sgx\" and feature \"mesalock_sgx\" must be enabled");
+#[cfg(all(feature = "no_mesalock_sgx", feature = "mesalock_sgx"))]
+compile_error!(
+    "feature \"no_mesalock_sgx\" and feature \"mesalock_sgx\" cannot be enabled at the same time"
+);
 
 mod encapsulate;
 mod hash_to_g1;

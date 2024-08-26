@@ -29,7 +29,7 @@ extern crate dawn_enclave_protocol;
 use dawn_enclave_protocol::{Request, Response};
 use sgx_tseal::SgxSealedData;
 use sgx_types::*;
-use std::io;
+use std::io::{self, Write};
 use std::vec::Vec;
 
 #[no_mangle]
@@ -53,7 +53,9 @@ pub extern "C" fn handle() -> sgx_status_t {
             Response::Reveal(dk)
         }
     };
-    serde_cbor::to_writer(io::stdout(), &response).unwrap();
+    let mut stdout = io::stdout().lock();
+    serde_cbor::to_writer(&mut stdout, &response).unwrap();
+    stdout.flush().unwrap();
 
     sgx_status_t::SGX_SUCCESS
 }

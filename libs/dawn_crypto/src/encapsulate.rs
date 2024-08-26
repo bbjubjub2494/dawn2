@@ -5,7 +5,6 @@ use ic_bls12_381::pairing;
 use ic_bls12_381::{G1Affine, G2Affine, G2Prepared, Gt, Scalar};
 
 use serde::{Deserialize, Serialize};
-use sgx_rand::os::SgxRng;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MasterPublicKey([u8; 96]);
@@ -66,15 +65,13 @@ impl DecryptionKey {
 }
 
 pub fn generate() -> (MasterPublicKey, MasterPrivateKey) {
-    let rng = SgxRng::new().unwrap();
-    let sk = Scalar::random(rng);
+    let sk = random_scalar();
     let pk = G2Affine::generator() * sk;
     (MasterPublicKey::pack(&pk.into()), MasterPrivateKey(sk))
 }
 
 pub fn share(label: &[u8], mpk: &MasterPublicKey) -> (EphemeralPublicKey, SharedSecret) {
-    let rng = SgxRng::new().unwrap();
-    let r = Scalar::random(rng);
+    let r = random_scalar();
     let u: G2Affine = (r * G2Affine::generator()).into();
     let s = pairing(&hash_to_g1::hash_to_g1(label), &mpk.unpack()) * r;
     (EphemeralPublicKey::pack(&u.into()), SharedSecret(s))
@@ -116,6 +113,18 @@ fn fast_pairing_equality(p: &G1Affine, q: &G2Affine, r: &G1Affine, s: &G2Affine)
     let looped = multi_miller_loop(&[pair1, pair2]);
     let value = looped.final_exponentiation();
     value.is_identity().into()
+}
+
+#[cfg(feature = "mesalock_sgx")]
+fn random_scalar() -> Scalar {
+    let rng = sgx_rand::os::SgxRng::new().unwrap();
+    Scalar::random(rng)
+}
+#[cfg(feature = "no_mesalock_sgx")]
+fn random_scalar() -> Scalar {
+    use group::ff::Field;
+    let rng = rand::rngs::OsRng;
+    Scalar::random(rng)
 }
 
 #[cfg(test)]

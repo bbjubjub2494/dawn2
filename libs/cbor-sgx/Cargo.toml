@@ -19,7 +19,7 @@ maintenance = { status = "passively-maintained" }
 
 [dependencies]
 half = "1.2.0"
-serde = { path = "../serde-sgx/serde" }
+serde = { path = "../serde-sgx/serde", default-features = false }
 sgx_tstd = { rev = "v1.1.6", git = "https://github.com/apache/teaclave-sgx-sdk.git", optional = true }
 
 [dev-dependencies]
@@ -30,7 +30,7 @@ sgx_tstd = { rev = "v1.1.6", git = "https://github.com/apache/teaclave-sgx-sdk.g
 # `no_std`.
 default = ["std", "mesalock_sgx"]
 alloc = ["serde/alloc"]
-std = ["serde/std", "mesalock_sgx"]
+std = ["serde/std"]
 mesalock_sgx = ["sgx_tstd"]
 unsealed_read_write = []
 tags = []

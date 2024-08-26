@@ -4,8 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-dawn_crypto = { path = "../dawn_crypto" }
-serde = { path = "../serde-sgx/serde", features = ["derive"] }
+dawn_crypto = { path = "../dawn_crypto", default-features = false }
+serde = { path = "../serde-sgx/serde", features = ["derive", "std"], default-features = false }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.6", optional = true }
 
-[target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.6" }
+[features]
+default = [ "no_mesalock_sgx" ]
+no_mesalock_sgx = ["dawn_crypto/no_mesalock_sgx"]
+mesalock_sgx = ["dawn_crypto/mesalock_sgx", "serde/mesalock_sgx", "dep:sgx_tstd"]

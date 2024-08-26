@@ -1,11 +1,10 @@
-#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(feature = "mesalock_sgx", no_std)]
 #![cfg_attr(
     all(target_env = "sgx", target_vendor = "mesalock"),
     feature(rustc_private)
 )]
 
-#[cfg(not(target_env = "sgx"))]
-#[macro_use]
+#[cfg(feature = "mesalock_sgx")]
 extern crate sgx_tstd as std;
 
 use serde::{Deserialize, Serialize};

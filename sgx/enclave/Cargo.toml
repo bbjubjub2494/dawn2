@@ -16,9 +16,13 @@ serde_cbor = { path = "../../libs/cbor-sgx" }
 
 [dependencies.dawn_crypto]
 path = "../../libs/dawn_crypto"
+default-features = false
+features = ["mesalock_sgx"]
 
 [dependencies.dawn_enclave_protocol]
 path = "../../libs/dawn_enclave_protocol"
+default-features = false
+features = ["mesalock_sgx"]
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.6" }

@@ -6,10 +6,15 @@ edition = "2021"
 [dependencies]
 chacha20poly1305 = "0.10.1"
 group = "0.13.0"
-ic_bls12_381 = { path = "../bls12_381", features = ["experimental"] }
+ic_bls12_381 = { version = "0.10.0", features = ["experimental"], optional = true }
+ic_bls12_381-sgx = { path = "../bls12_381", package = "ic_bls12_381", features = ["experimental"], optional = true }
 sha2 = { version = "0.10.8", default-features = false }
-serde = { path = "../serde-sgx/serde", features = ["derive"] }
+serde = { path = "../serde-sgx/serde", features = ["derive"], default-features = false }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.6", optional = true }
+sgx_rand = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.6", optional = true }
+rand = { version = "0.8.5", optional = true }
 
-[target.'cfg(not(target_env = "sgx"))'.dependencies]
-sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.6" }
-sgx_rand = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.6" }
+[features]
+default = [ "no_mesalock_sgx" ]
+no_mesalock_sgx = ["dep:ic_bls12_381", "dep:rand"]
+mesalock_sgx = ["dep:sgx_tstd", "dep:sgx_rand", "dep:ic_bls12_381-sgx", "serde/mesalock_sgx"]
