@@ -25,7 +25,7 @@ TODO subject to change, implement
 We introduce a new Ethereum hard fork after which blocks also contain a shadow block.
 The shadow block is a list of transactions whose total gas does not exceed the gas limit, and a beneficiary address.
 The block producer is no longer able to choose which transactions to include in their block:
-instead, they must use the transactions from the dth ancestor of their block.
+instead, they must use the shadow transactions from the dth ancestor of their block.
 However, they can create the shadow block for d blocks in the future and collect the fees.
 
 We also introduce new transaction types.
