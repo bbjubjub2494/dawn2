@@ -1,0 +1,39 @@
+[package]
+name = "alloy-signer-aws"
+description = "Ethereum AWS KMS signer"
+
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true
+
+[dependencies]
+alloy-consensus = { workspace = true, features = ["std"] }
+alloy-network.workspace = true
+alloy-primitives.workspace = true
+alloy-signer.workspace = true
+
+async-trait.workspace = true
+aws-sdk-kms = { version = "1", default-features = false }
+k256.workspace = true
+spki = { workspace = true, features = ["std"] }
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+aws-config = { version = "1", default-features = false }
+
+[features]
+eip712 = ["alloy-signer/eip712"]

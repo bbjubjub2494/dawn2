@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/alloy-rs/alloy
+	branch = main
+	commit = 2242ac86c5b5c13b85c0283e58e42a2c6a5a0b52
+	parent = 052df4d136cdff6e67981a685413654aaac45fb6
+	method = merge
+	cmdver = 0.4.6

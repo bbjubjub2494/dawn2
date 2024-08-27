@@ -1,0 +1,61 @@
+[package]
+name = "alloy-consensus"
+description = "Ethereum consensus interface"
+
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true
+
+[dependencies]
+alloy-primitives = { workspace = true, features = ["rlp"] }
+alloy-rlp.workspace = true
+alloy-eips = { workspace = true, features = ["kzg-sidecar"] }
+alloy-serde = { workspace = true, optional = true }
+
+# kzg
+c-kzg = { workspace = true, features = ["serde"], optional = true }
+
+# arbitrary
+arbitrary = { workspace = true, features = ["derive"], optional = true }
+
+# serde
+serde = { workspace = true, features = ["derive"], optional = true }
+
+[dev-dependencies]
+alloy-primitives = { workspace = true, features = ["arbitrary", "rand"] }
+alloy-eips = { workspace = true, features = ["arbitrary"] }
+alloy-signer.workspace = true
+
+arbitrary = { workspace = true, features = ["derive"] }
+k256.workspace = true
+tokio = { workspace = true, features = ["macros"] }
+serde_json.workspace = true
+
+[features]
+default = ["std"]
+std = ["alloy-eips/std", "c-kzg?/std"]
+k256 = ["alloy-primitives/k256", "alloy-eips/k256"]
+kzg = ["dep:c-kzg", "alloy-eips/kzg", "std"]
+arbitrary = [
+    "std",
+    "dep:arbitrary",
+    "alloy-eips/arbitrary",
+]
+serde = [
+    "dep:serde",
+    "alloy-primitives/serde",
+    "dep:alloy-serde",
+    "alloy-eips/serde",
+]

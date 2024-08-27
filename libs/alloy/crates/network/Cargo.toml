@@ -1,0 +1,42 @@
+[package]
+name = "alloy-network"
+description = "Ethereum blockchain RPC behavior abstraction"
+
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true
+
+[dependencies]
+alloy-consensus = { workspace = true, features = ["std"] }
+alloy-eips = { workspace = true, features = ["serde"] }
+alloy-json-rpc.workspace = true
+alloy-network-primitives.workspace = true
+alloy-primitives.workspace = true
+alloy-rpc-types-eth.workspace = true
+alloy-signer.workspace = true
+alloy-serde.workspace = true
+alloy-sol-types.workspace = true
+
+auto_impl.workspace = true
+async-trait.workspace = true
+futures-utils-wasm.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+alloy-signer-local.workspace = true
+tokio.workspace = true
+
+[features]
+k256 = ["alloy-primitives/k256", "alloy-consensus/k256"]
