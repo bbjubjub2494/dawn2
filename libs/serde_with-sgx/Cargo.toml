@@ -1,0 +1,65 @@
+[workspace]
+members = [
+    "serde_with",
+    "serde_with_macros",
+    "serde_with_test",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/jonasbb/serde_with/"
+rust-version = "1.67"
+version = "3.9.0"
+
+[workspace.metadata.release]
+consolidate-commits = true
+pre-release-commit-message = "Bump version to v{{version}}"
+publish = false
+push = false
+shared-version = true
+sign-tag = true
+tag = false
+
+[workspace.lints.rust]
+rust_2018_idioms = { level = "warn", priority = -1 }
+missing_docs = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+unused_extern_crates = "warn"
+unused_import_braces = "warn"
+# Causes problems with the darling derives in the serde_with_macros crate.
+# unused_qualifications = "warn"
+variant_size_differences = "warn"
+# Unsafe code is needed for array initialization using MaybeUninit.
+# unsafe_code = "forbid"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin)', 'cfg(tarpaulin_include)'] }
+
+[workspace.lints.clippy]
+# These lints have false positives and are disabled until they are fixed.
+
+# explicit_auto_deref suggests code that does not compile
+# https://github.com/rust-lang/rust-clippy/issues/9841
+explicit_auto_deref = "allow"
+# Triggers in macro generated code of darling
+# https://github.com/rust-lang/rust-clippy/issues/12643
+manual-unwrap-or-default = "allow"
+
+# alloc_instead_of_core = "warn"
+# Checks for usage of `cloned()` on an `Iterator` or `Option` where `copied()` could be used instead.
+cloned_instead_of_copied = "warn"
+# Checks for literal calls to `Default::default()`.
+default_trait_access = "warn"
+# Checks for the presence of `_`, `::` or camel-case words outside ticks in documentation.
+# Disabled due to FP: https://github.com/rust-lang/rust-clippy/issues/12075
+doc_markdown = "warn"
+# Checks for closures which only invoke a method on the closure argument and can be replaced by referencing the method directly.
+redundant_closure_for_method_calls = "warn"
+semicolon_if_nothing_returned = "warn"
+# std_instead_of_core = "warn"
+# std_instead_of_alloc = "warn"
+
+[workspace.lints.rustdoc]
+missing_crate_level_docs = "warn"

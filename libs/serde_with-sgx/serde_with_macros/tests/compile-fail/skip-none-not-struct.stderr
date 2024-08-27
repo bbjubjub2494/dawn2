@@ -1,0 +1,7 @@
+error: The attribute can only be applied to struct or enum definitions.
+ --> tests/compile-fail/skip-none-not-struct.rs:3:1
+  |
+3 | #[skip_serializing_none]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the attribute macro `skip_serializing_none` (in Nightly builds, run with -Z macro-backtrace for more info)

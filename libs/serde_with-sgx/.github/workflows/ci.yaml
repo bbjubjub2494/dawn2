@@ -1,0 +1,140 @@
+name: Rust CI
+on:
+  # Always test pull requests
+  pull_request:
+  # Bors related branches
+  push:
+    branches:
+      - master
+      - staging
+      - trying
+  # Test once per week: Saturday at 00:00
+  schedule:
+    - cron: "0 0 * * 6"
+permissions: read-all
+
+jobs:
+  clippy_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest", "windows-latest"]
+        rust: ["stable", "nightly"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Install/Update the Rust version"
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: clippy
+
+      - name: clippy "No Default Features" (${{ matrix.os }} / ${{ matrix.rust }})
+        run: cargo clippy --workspace --no-default-features --all-targets
+      - name: clippy "Default" (${{ matrix.os }} / ${{ matrix.rust }})
+        run: cargo clippy --workspace --all-targets
+      - name: clippy "All Features" (${{ matrix.os }} / ${{ matrix.rust }})
+        run: cargo clippy --workspace --all-features --all-targets
+
+  rustfmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Install/Update the Rust version"
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: rustfmt
+
+      - name: Rustfmt Check (${{ matrix.rust }})
+        uses: actions-rust-lang/rustfmt@v1
+
+  build_and_test:
+    name: Build and Test
+    strategy:
+      matrix:
+        os: ["ubuntu-latest", "windows-latest"]
+        # It is good to test more than the MSRV and stable since sometimes
+        # breakage occurs in intermediate versions.
+        # IMPORTANT: Synchronize the MSRV with the Cargo.toml values.
+        rust: ["1.67", "1.70", "1.75", "stable", "beta", "nightly"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Install/Update the Rust version"
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          # Extra toolchain to test no_std
+          target: thumbv7em-none-eabihf
+
+      # # Test that the project also compiles with the newest dependencies.
+      # # On nightly there is little cache reuse, so there is not much overhead
+      # # in constantly updating the versions.
+      # - name: Bump dependencies on nightly
+      #   if: matrix.rust == 'nightly'
+      #   run: cargo update
+
+      # Build the project
+      - name: "Build (${{ matrix.os }} / ${{ matrix.rust }})"
+        run: cargo build --all-features --all-targets
+
+      # Check no_std works
+      - name: "Check no_std (No Default Features / ${{ matrix.os }} / ${{ matrix.rust }})"
+        run: cargo check --package serde_with --no-default-features --target thumbv7em-none-eabihf
+      - name: "Check no_std+alloc (No Default Features / ${{ matrix.os }} / ${{ matrix.rust }})"
+        run: cargo check --package serde_with --no-default-features --features=alloc --target thumbv7em-none-eabihf
+      - name: "Check no_std+alloc+optional (No Default Features / ${{ matrix.os }} / ${{ matrix.rust }})"
+        run: cargo check --package serde_with --no-default-features --features=alloc,base64,chrono_0_4,hashbrown_0_14,hex,indexmap_1,indexmap_2,json,time_0_3 --target thumbv7em-none-eabihf
+
+      # The tests are split into build and run steps, to see the time impact of each
+      # cargo test --all-targets does NOT run doctests
+      # since doctests are important this should not be added
+      # https://github.com/rust-lang/cargo/issues/6669
+      - name: "Test Build (No Default Features / ${{ matrix.os }} / ${{ matrix.rust }})"
+        run: cargo test --no-default-features --no-run
+      - name: "Test Run (No Default Features / ${{ matrix.os }} / ${{ matrix.rust }})"
+        run: cargo test --no-default-features --no-fail-fast
+      - name: "Test Build (Default Features / ${{ matrix.os }} / ${{ matrix.rust }})"
+        run: cargo test --no-run
+      - name: "Test Run (Default Features / ${{ matrix.os }} / ${{ matrix.rust }})"
+        run: cargo test --no-fail-fast
+      - name: "Test Build (All Features / ${{ matrix.os }} / ${{ matrix.rust }})"
+        run: cargo test --all-features  --no-run
+      - name: "Test Run (All Features / ${{ matrix.os }} / ${{ matrix.rust }})"
+        run: cargo test --all-features --no-default-features --no-fail-fast
+
+      - name: Run cargo-tarpaulin
+        if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
+        run: |
+          cargo install cargo-tarpaulin
+          cargo tarpaulin --out xml --workspace --all-features -- --test-threads=1
+        env:
+          # https://github.com/xd009642/tarpaulin/issues/1499
+          CARGO_PROFILE_DEV_DEBUG: 1
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v4
+        if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
+
+  # Added to summarize the matrix (otherwise we would need to list every single
+  # job in bors.toml)
+  # https://forum.bors.tech/t/bors-with-github-workflows/426
+  tests-result:
+    name: Tests result
+    if: always()
+    needs:
+      - rustfmt
+      - clippy_check
+      - build_and_test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark the job as a success
+        if: "needs.rustfmt.result == 'success' && needs.clippy_check.result == 'success' && needs.build_and_test.result == 'success'"
+        run: exit 0
+      - name: Mark the job as a failure
+        if: "!(needs.rustfmt.result == 'success' && needs.clippy_check.result == 'success' && needs.build_and_test.result == 'success')"
+        run: exit 1

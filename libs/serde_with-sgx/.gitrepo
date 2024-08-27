@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/jonasbb/serde_with
+	branch = master
+	commit = c3e489f4e571fadad9e656c28332b3708bd8cf0e
+	parent = 3c0e5c2af2fb947e870c8175492c6e68d8655262
+	method = merge
+	cmdver = 0.4.6
