@@ -1,7 +1,7 @@
 run: build-reth build-scenario
   #!/usr/bin/env bash
   
-  . lib.sh
+  . libs/lib.sh
   setup_tmpdir
 
   tmux set -g remain-on-exit failed
@@ -20,7 +20,7 @@ run: build-reth build-scenario
 
 reth *args: build-reth
   #!/usr/bin/env bash
-  . lib.sh
+  . libs/lib.sh
   run_reth {{args}}
 
 build-scenario: build-contracts
