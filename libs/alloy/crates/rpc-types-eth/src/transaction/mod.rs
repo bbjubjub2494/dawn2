@@ -294,6 +294,8 @@ impl TryFrom<Transaction> for TxEnvelope {
             TxType::Eip2930 => Ok(Self::Eip2930(tx.try_into()?)),
             TxType::Eip4844 => Ok(Self::Eip4844(tx.try_into()?)),
             TxType::Eip7702 => Ok(Self::Eip7702(tx.try_into()?)),
+            TxType::DawnEncrypted => todo!(),
+            TxType::DawnDecrypted => todo!(),
         }
     }
 }

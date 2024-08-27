@@ -31,8 +31,8 @@ impl MasterPrivateKey {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct EphemeralPublicKey([u8; 96]);
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct EphemeralPublicKey(pub [u8; 96]);
 
 impl EphemeralPublicKey {
     pub fn unpack(&self) -> G2Affine {
@@ -52,8 +52,8 @@ impl SharedSecret {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DecryptionKey([u8; 48]);
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DecryptionKey(pub [u8; 48]);
 
 impl DecryptionKey {
     pub fn unpack(&self) -> G1Affine {

@@ -32,11 +32,14 @@ arbitrary = { workspace = true, features = ["derive"], optional = true }
 
 # serde
 serde = { workspace = true, features = ["derive"], optional = true }
+dawn_crypto = { version = "0.1.0", path = "../../../dawn_crypto" }
 
 [dev-dependencies]
 alloy-primitives = { workspace = true, features = ["arbitrary", "rand"] }
 alloy-eips = { workspace = true, features = ["arbitrary"] }
 alloy-signer.workspace = true
+alloy-signer-local.workspace = true
+alloy-network = { workspace = true }
 
 arbitrary = { workspace = true, features = ["derive"] }
 k256.workspace = true

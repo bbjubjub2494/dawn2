@@ -137,7 +137,7 @@
 )]
 // Rustc lints.
 #![forbid(unsafe_code)]
-#![deny(missing_docs, unused_imports)]
+#![deny(missing_docs)]
 
 ////////////////////////////////////////////////////////////////////////////////
 

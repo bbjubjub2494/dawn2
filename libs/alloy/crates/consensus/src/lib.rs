@@ -33,9 +33,12 @@ pub mod transaction;
 #[cfg(feature = "kzg")]
 pub use transaction::BlobTransactionValidationError;
 pub use transaction::{
-    SignableTransaction, Transaction, TxEip1559, TxEip2930, TxEip4844, TxEip4844Variant,
-    TxEip4844WithSidecar, TxEip7702, TxEnvelope, TxLegacy, TxType, TypedTransaction,
+    SignableTransaction, Transaction, TxDawnDecrypted, TxDawnEncrypted, TxEip1559, TxEip2930,
+    TxEip4844, TxEip4844Variant, TxEip4844WithSidecar, TxEip7702, TxEnvelope, TxLegacy, TxType,
+    TypedTransaction,
 };
+
+pub mod dawn;
 
 pub use alloy_eips::eip4844::{
     builder::{SidecarBuilder, SidecarCoder, SimpleCoder},

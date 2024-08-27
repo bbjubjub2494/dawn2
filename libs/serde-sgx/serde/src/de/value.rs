@@ -526,6 +526,17 @@ where
 }
 
 #[cfg(any(feature = "std", feature = "alloc"))]
+impl<E> StringDeserializer<E> {
+    #[allow(missing_docs)]
+    pub fn new(value: String) -> Self {
+        StringDeserializer {
+            value,
+            marker: PhantomData,
+        }
+    }
+}
+
+#[cfg(any(feature = "std", feature = "alloc"))]
 impl<'de, E> de::Deserializer<'de> for StringDeserializer<E>
 where
     E: de::Error,

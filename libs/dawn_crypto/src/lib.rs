@@ -23,14 +23,16 @@ mod symmetric;
 
 use sha2::{Digest, Sha256};
 
+use serde::{Deserialize, Serialize};
 use std::vec::Vec;
 
 pub use encapsulate::*;
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Ciphertext {
-    u: EphemeralPublicKey,
-    payload: Vec<u8>,
-    tag: [u8; symmetric::TAG_SIZE],
+    pub u: EphemeralPublicKey,
+    pub payload: Vec<u8>,
+    pub tag: [u8; symmetric::TAG_SIZE],
 }
 
 impl Ciphertext {
@@ -60,6 +62,23 @@ impl Ciphertext {
         match symmetric::decrypt(&k, &mut buf, associated_data, &self.tag) {
             Ok(()) => Some(buf),
             Err(_) => None,
+        }
+    }
+
+    pub fn reencrypt(
+        u: &EphemeralPublicKey,
+        dk: &DecryptionKey,
+        payload: &[u8],
+        associated_data: &[u8],
+    ) -> Self {
+        let mut buf = payload.to_vec();
+        let s = encapsulate::recover(u, dk);
+        let k = derive_key(&s);
+        let tag = symmetric::encrypt(&k, &mut buf, associated_data);
+        Self {
+            u: u.clone(),
+            payload: buf,
+            tag,
         }
     }
 }

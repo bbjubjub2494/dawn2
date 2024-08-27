@@ -12,6 +12,10 @@ homepage = "https://github.com/alloy-rs/alloy"
 repository = "https://github.com/alloy-rs/alloy"
 exclude = ["benches/", "tests/"]
 
+[patch.crates-io]
+serde = { path = "../serde-sgx/serde" }
+serde_json = { path = "../json-sgx" }
+
 [workspace.lints.rust]
 missing-debug-implementations = "warn"
 missing-docs = "warn"
@@ -132,12 +136,12 @@ url = "2.5"
 derive_more = "1.0.0"
 
 ## serde
-serde = { version = "1.0", default-features = false, features = [
+serde = { path = "../serde-sgx/serde", default-features = false, features = [
     "derive",
     "alloc",
 ] }
-serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
-serde_with = "3.3.0"
+serde_json = { path = "../json-sgx", default-features = false, features = ["alloc"] }
+serde_with = { path = "../serde_with-sgx/serde_with" }
 
 ## misc-testing
 arbitrary = "1.3"

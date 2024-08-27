@@ -131,6 +131,8 @@ impl TransactionBuilder<Ethereum> for TransactionRequest {
             TxType::Eip1559 => self.complete_1559(),
             TxType::Eip4844 => self.complete_4844(),
             TxType::Eip7702 => self.complete_7702(),
+            TxType::DawnEncrypted => todo!(),
+            TxType::DawnDecrypted => todo!(),
         }
     }
 

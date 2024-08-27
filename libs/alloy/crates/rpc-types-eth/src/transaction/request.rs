@@ -402,6 +402,9 @@ impl TransactionRequest {
                 self.blob_versioned_hashes = None;
                 self.sidecar = None;
             }
+            TxType::DawnEncrypted | TxType::DawnDecrypted => {
+                unreachable!("Dawn transactions cannot be preferred types");
+            }
         }
     }
 
@@ -441,6 +444,9 @@ impl TransactionRequest {
             TxType::Eip1559 => self.complete_1559(),
             TxType::Eip4844 => self.complete_4844(),
             TxType::Eip7702 => self.complete_7702(),
+            TxType::DawnEncrypted | TxType::DawnDecrypted => {
+                unreachable!("Dawn transactions cannot be preferred types")
+            }
         } {
             Err((pref, missing))
         } else {
@@ -544,6 +550,9 @@ impl TransactionRequest {
             TxType::Eip1559 => self.complete_1559().ok(),
             TxType::Eip4844 => self.complete_4844().ok(),
             TxType::Eip7702 => self.complete_7702().ok(),
+            TxType::DawnEncrypted | TxType::DawnDecrypted => {
+                unreachable!("Dawn transactions cannot be preferred types")
+            }
         }?;
         Some(pref)
     }
@@ -566,6 +575,9 @@ impl TransactionRequest {
             // `sidecar` is a hard requirement since this must be a _sendable_ transaction.
             TxType::Eip4844 => self.build_4844_with_sidecar().expect("checked)").into(),
             TxType::Eip7702 => self.build_7702().expect("checked)").into(),
+            TxType::DawnEncrypted | TxType::DawnDecrypted => {
+                unreachable!("Dawn transactions cannot be preferred types")
+            }
         })
     }
 
@@ -586,6 +598,9 @@ impl TransactionRequest {
             TxType::Eip1559 => self.clone().build_1559().map(Into::into),
             TxType::Eip4844 => self.clone().build_4844_variant().map(Into::into),
             TxType::Eip7702 => self.clone().build_7702().map(Into::into),
+            TxType::DawnEncrypted | TxType::DawnDecrypted => {
+                unreachable!("Dawn transactions cannot be preferred types")
+            }
         }
         .map_err(|msg| self.into_tx_err(msg))
     }
@@ -832,6 +847,8 @@ impl From<TypedTransaction> for TransactionRequest {
             TypedTransaction::Eip1559(tx) => tx.into(),
             TypedTransaction::Eip4844(tx) => tx.into(),
             TypedTransaction::Eip7702(tx) => tx.into(),
+            TypedTransaction::DawnEncrypted(tx) => todo!(),
+            TypedTransaction::DawnDecrypted(tx) => todo!(),
         }
     }
 }

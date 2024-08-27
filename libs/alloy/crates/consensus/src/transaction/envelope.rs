@@ -2,7 +2,10 @@
 use alloc::vec::Vec;
 use core::fmt;
 
-use crate::{Signed, Transaction, TxEip1559, TxEip2930, TxEip7702, TxLegacy};
+use crate::{
+    Signed, Transaction, TxDawnDecrypted, TxDawnEncrypted, TxEip1559, TxEip2930, TxEip7702,
+    TxLegacy,
+};
 use alloy_eips::{
     eip2718::{Decodable2718, Eip2718Error, Eip2718Result, Encodable2718},
     eip2930::AccessList,
@@ -34,6 +37,10 @@ pub enum TxType {
     Eip4844 = 3,
     /// EIP-7702 transaction type.
     Eip7702 = 4,
+    /// Dawn Encrypted transaction type.
+    DawnEncrypted = 5,
+    /// Dawn Decrypted transaction type.
+    DawnDecrypted = 6,
 }
 
 impl From<TxType> for u8 {
@@ -50,6 +57,8 @@ impl fmt::Display for TxType {
             Self::Eip1559 => write!(f, "EIP-1559"),
             Self::Eip4844 => write!(f, "EIP-4844"),
             Self::Eip7702 => write!(f, "EIP-7702"),
+            Self::DawnEncrypted => write!(f, "Dawn Encrypted"),
+            Self::DawnDecrypted => write!(f, "Dawn Decrypted"),
         }
     }
 }
@@ -71,6 +80,8 @@ impl TryFrom<u8> for TxType {
             2 => Self::Eip1559,
             3 => Self::Eip4844,
             4 => Self::Eip7702,
+            5 => Self::DawnEncrypted,
+            6 => Self::DawnDecrypted,
             _ => return Err(Eip2718Error::UnexpectedType(value)),
         })
     }
@@ -114,6 +125,8 @@ pub enum TxEnvelope {
     /// A [`TxEip7702`] tagged with type 4.
     #[cfg_attr(feature = "serde", serde(rename = "0x4", alias = "0x04"))]
     Eip7702(Signed<TxEip7702>),
+    DawnEncrypted(Signed<TxDawnEncrypted>),
+    DawnDecrypted(Signed<TxDawnDecrypted>),
 }
 
 impl From<Signed<TxLegacy>> for TxEnvelope {
@@ -157,6 +170,18 @@ impl From<Signed<TxEip4844WithSidecar>> for TxEnvelope {
 impl From<Signed<TxEip7702>> for TxEnvelope {
     fn from(v: Signed<TxEip7702>) -> Self {
         Self::Eip7702(v)
+    }
+}
+
+impl From<Signed<TxDawnEncrypted>> for TxEnvelope {
+    fn from(v: Signed<TxDawnEncrypted>) -> Self {
+        Self::DawnEncrypted(v)
+    }
+}
+
+impl From<Signed<TxDawnDecrypted>> for TxEnvelope {
+    fn from(v: Signed<TxDawnDecrypted>) -> Self {
+        Self::DawnDecrypted(v)
     }
 }
 
@@ -242,6 +267,8 @@ impl TxEnvelope {
             Self::Eip1559(tx) => tx.recover_signer(),
             Self::Eip4844(tx) => tx.recover_signer(),
             Self::Eip7702(tx) => tx.recover_signer(),
+            Self::DawnEncrypted(tx) => tx.recover_signer(),
+            Self::DawnDecrypted(tx) => tx.recover_signer(),
         }
     }
 
@@ -253,6 +280,8 @@ impl TxEnvelope {
             Self::Eip1559(tx) => tx.signature_hash(),
             Self::Eip4844(tx) => tx.signature_hash(),
             Self::Eip7702(tx) => tx.signature_hash(),
+            Self::DawnEncrypted(tx) => tx.signature_hash(),
+            Self::DawnDecrypted(tx) => tx.signature_hash(),
         }
     }
 
@@ -265,6 +294,8 @@ impl TxEnvelope {
             Self::Eip1559(tx) => tx.hash(),
             Self::Eip4844(tx) => tx.hash(),
             Self::Eip7702(tx) => tx.hash(),
+            Self::DawnEncrypted(tx) => tx.hash(),
+            Self::DawnDecrypted(tx) => tx.hash(),
         }
     }
 
@@ -277,6 +308,8 @@ impl TxEnvelope {
             Self::Eip1559(_) => TxType::Eip1559,
             Self::Eip4844(_) => TxType::Eip4844,
             Self::Eip7702(_) => TxType::Eip7702,
+            Self::DawnEncrypted(_) => TxType::DawnEncrypted,
+            Self::DawnDecrypted(_) => TxType::DawnDecrypted,
         }
     }
 
@@ -309,6 +342,14 @@ impl TxEnvelope {
                 }
             },
             Self::Eip7702(t) => {
+                let payload_length = t.tx().fields_len() + t.signature().rlp_vrs_len();
+                Header { list: true, payload_length }.length() + payload_length
+            }
+            Self::DawnEncrypted(t) => {
+                let payload_length = t.tx().fields_len() + t.signature().rlp_vrs_len();
+                Header { list: true, payload_length }.length() + payload_length
+            }
+            Self::DawnDecrypted(t) => {
                 let payload_length = t.tx().fields_len() + t.signature().rlp_vrs_len();
                 Header { list: true, payload_length }.length() + payload_length
             }
@@ -363,6 +404,8 @@ impl Decodable2718 for TxEnvelope {
             TxType::Eip1559 => Ok(TxEip1559::decode_signed_fields(buf)?.into()),
             TxType::Eip4844 => Ok(TxEip4844Variant::decode_signed_fields(buf)?.into()),
             TxType::Eip7702 => Ok(TxEip7702::decode_signed_fields(buf)?.into()),
+            TxType::DawnEncrypted => Ok(TxDawnEncrypted::decode_signed_fields(buf)?.into()),
+            TxType::DawnDecrypted => Ok(TxDawnDecrypted::decode_signed_fields(buf)?.into()),
             TxType::Legacy => Err(Eip2718Error::UnexpectedType(0)),
         }
     }
@@ -380,6 +423,8 @@ impl Encodable2718 for TxEnvelope {
             Self::Eip1559(_) => Some(TxType::Eip1559.into()),
             Self::Eip4844(_) => Some(TxType::Eip4844.into()),
             Self::Eip7702(_) => Some(TxType::Eip7702.into()),
+            Self::DawnEncrypted(_) => Some(TxType::DawnEncrypted.into()),
+            Self::DawnDecrypted(_) => Some(TxType::DawnDecrypted.into()),
         }
     }
 
@@ -403,6 +448,12 @@ impl Encodable2718 for TxEnvelope {
             Self::Eip7702(tx) => {
                 tx.tx().encode_with_signature(tx.signature(), out, false);
             }
+            Self::DawnEncrypted(tx) => {
+                tx.tx().encode_with_signature(tx.signature(), out, false);
+            }
+            Self::DawnDecrypted(tx) => {
+                tx.tx().encode_with_signature(tx.signature(), out, false);
+            }
         }
     }
 }
@@ -415,6 +466,8 @@ impl Transaction for TxEnvelope {
             Self::Eip1559(tx) => tx.tx().chain_id(),
             Self::Eip4844(tx) => tx.tx().chain_id(),
             Self::Eip7702(tx) => tx.tx().chain_id(),
+            Self::DawnEncrypted(tx) => tx.tx().chain_id(),
+            Self::DawnDecrypted(tx) => tx.tx().chain_id(),
         }
     }
 
@@ -425,6 +478,8 @@ impl Transaction for TxEnvelope {
             Self::Eip1559(tx) => tx.tx().gas_limit(),
             Self::Eip4844(tx) => tx.tx().gas_limit(),
             Self::Eip7702(tx) => tx.tx().gas_limit(),
+            Self::DawnEncrypted(tx) => tx.tx().gas_limit(),
+            Self::DawnDecrypted(tx) => tx.tx().gas_limit(),
         }
     }
 
@@ -435,6 +490,8 @@ impl Transaction for TxEnvelope {
             Self::Eip1559(tx) => tx.tx().gas_price(),
             Self::Eip4844(tx) => tx.tx().gas_price(),
             Self::Eip7702(tx) => tx.tx().gas_price(),
+            Self::DawnEncrypted(tx) => tx.tx().gas_price(),
+            Self::DawnDecrypted(tx) => tx.tx().gas_price(),
         }
     }
 
@@ -445,6 +502,8 @@ impl Transaction for TxEnvelope {
             Self::Eip1559(tx) => tx.tx().max_fee_per_gas(),
             Self::Eip4844(tx) => tx.tx().max_fee_per_gas(),
             Self::Eip7702(tx) => tx.tx().max_fee_per_gas(),
+            Self::DawnEncrypted(tx) => tx.tx().max_fee_per_gas(),
+            Self::DawnDecrypted(tx) => tx.tx().max_fee_per_gas(),
         }
     }
 
@@ -455,6 +514,8 @@ impl Transaction for TxEnvelope {
             Self::Eip1559(tx) => tx.tx().max_priority_fee_per_gas(),
             Self::Eip4844(tx) => tx.tx().max_priority_fee_per_gas(),
             Self::Eip7702(tx) => tx.tx().max_priority_fee_per_gas(),
+            Self::DawnEncrypted(tx) => tx.tx().max_priority_fee_per_gas(),
+            Self::DawnDecrypted(tx) => tx.tx().max_priority_fee_per_gas(),
         }
     }
 
@@ -465,6 +526,8 @@ impl Transaction for TxEnvelope {
             Self::Eip1559(tx) => tx.tx().priority_fee_or_price(),
             Self::Eip4844(tx) => tx.tx().priority_fee_or_price(),
             Self::Eip7702(tx) => tx.tx().priority_fee_or_price(),
+            Self::DawnEncrypted(tx) => tx.tx().priority_fee_or_price(),
+            Self::DawnDecrypted(tx) => tx.tx().priority_fee_or_price(),
         }
     }
 
@@ -475,6 +538,8 @@ impl Transaction for TxEnvelope {
             Self::Eip1559(tx) => tx.tx().max_fee_per_blob_gas(),
             Self::Eip4844(tx) => tx.tx().max_fee_per_blob_gas(),
             Self::Eip7702(tx) => tx.tx().max_fee_per_blob_gas(),
+            Self::DawnEncrypted(tx) => tx.tx().max_fee_per_blob_gas(),
+            Self::DawnDecrypted(tx) => tx.tx().max_fee_per_blob_gas(),
         }
     }
 
@@ -485,6 +550,8 @@ impl Transaction for TxEnvelope {
             Self::Eip1559(tx) => tx.tx().input(),
             Self::Eip4844(tx) => tx.tx().input(),
             Self::Eip7702(tx) => tx.tx().input(),
+            Self::DawnEncrypted(tx) => tx.tx().input(),
+            Self::DawnDecrypted(tx) => tx.tx().input(),
         }
     }
 
@@ -495,6 +562,8 @@ impl Transaction for TxEnvelope {
             Self::Eip1559(tx) => tx.tx().nonce(),
             Self::Eip4844(tx) => tx.tx().nonce(),
             Self::Eip7702(tx) => tx.tx().nonce(),
+            Self::DawnEncrypted(tx) => tx.tx().nonce(),
+            Self::DawnDecrypted(tx) => tx.tx().nonce(),
         }
     }
 
@@ -505,6 +574,8 @@ impl Transaction for TxEnvelope {
             Self::Eip1559(tx) => tx.tx().to(),
             Self::Eip4844(tx) => tx.tx().to(),
             Self::Eip7702(tx) => tx.tx().to(),
+            Self::DawnEncrypted(tx) => tx.tx().to(),
+            Self::DawnDecrypted(tx) => tx.tx().to(),
         }
     }
 
@@ -515,6 +586,8 @@ impl Transaction for TxEnvelope {
             Self::Eip1559(tx) => tx.tx().value(),
             Self::Eip4844(tx) => tx.tx().value(),
             Self::Eip7702(tx) => tx.tx().value(),
+            Self::DawnEncrypted(tx) => tx.tx().value(),
+            Self::DawnDecrypted(tx) => tx.tx().value(),
         }
     }
 
@@ -525,6 +598,8 @@ impl Transaction for TxEnvelope {
             Self::Eip1559(tx) => tx.tx().ty(),
             Self::Eip4844(tx) => tx.tx().ty(),
             Self::Eip7702(tx) => tx.tx().ty(),
+            Self::DawnEncrypted(tx) => tx.tx().ty(),
+            Self::DawnDecrypted(tx) => tx.tx().ty(),
         }
     }
 
@@ -535,6 +610,8 @@ impl Transaction for TxEnvelope {
             Self::Eip1559(tx) => tx.tx().access_list(),
             Self::Eip4844(tx) => tx.tx().access_list(),
             Self::Eip7702(tx) => tx.tx().access_list(),
+            Self::DawnEncrypted(tx) => tx.tx().access_list(),
+            Self::DawnDecrypted(tx) => tx.tx().access_list(),
         }
     }
 
@@ -545,6 +622,8 @@ impl Transaction for TxEnvelope {
             Self::Eip1559(tx) => tx.tx().blob_versioned_hashes(),
             Self::Eip4844(tx) => tx.tx().blob_versioned_hashes(),
             Self::Eip7702(tx) => tx.tx().blob_versioned_hashes(),
+            Self::DawnEncrypted(tx) => tx.tx().blob_versioned_hashes(),
+            Self::DawnDecrypted(tx) => tx.tx().blob_versioned_hashes(),
         }
     }
 
@@ -555,6 +634,8 @@ impl Transaction for TxEnvelope {
             Self::Eip1559(tx) => tx.tx().authorization_list(),
             Self::Eip4844(tx) => tx.tx().authorization_list(),
             Self::Eip7702(tx) => tx.tx().authorization_list(),
+            Self::DawnEncrypted(tx) => tx.tx().authorization_list(),
+            Self::DawnDecrypted(tx) => tx.tx().authorization_list(),
         }
     }
 }

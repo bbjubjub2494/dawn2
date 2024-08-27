@@ -137,6 +137,14 @@ where
                 let sig = self.sign_transaction_inner(sender, &mut t).await?;
                 Ok(t.into_signed(sig).into())
             }
+            TypedTransaction::DawnEncrypted(mut t) => {
+                let sig = self.sign_transaction_inner(sender, &mut t).await?;
+                Ok(t.into_signed(sig).into())
+            }
+            TypedTransaction::DawnDecrypted(mut t) => {
+                let sig = self.sign_transaction_inner(sender, &mut t).await?;
+                Ok(t.into_signed(sig).into())
+            }
         }
     }
 }

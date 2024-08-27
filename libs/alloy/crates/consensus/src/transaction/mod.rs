@@ -20,6 +20,12 @@ pub use eip7702::TxEip7702;
 /// [EIP-4844] constants, helpers, and types.
 pub mod eip4844;
 
+mod dawn_encrypted;
+pub use dawn_encrypted::TxDawnEncrypted;
+
+mod dawn_decrypted;
+pub use dawn_decrypted::TxDawnDecrypted;
+
 pub use alloy_eips::eip4844::{
     builder::{SidecarBuilder, SidecarCoder, SimpleCoder},
     utils as eip4844_utils, Blob, BlobTransactionSidecar, Bytes48,

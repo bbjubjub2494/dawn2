@@ -30,7 +30,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 ### FEATURES #################################################################
 
 [features]
-default = ["std", "mesalock_sgx"]
+default = ["std"]
 
 # Provide derive(Serialize, Deserialize) macros.
 derive = ["serde_derive"]
