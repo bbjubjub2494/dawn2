@@ -15,6 +15,8 @@ use futures_utils_wasm::impl_future;
 /// Network wallets are expected to contain one or more signing credentials,
 /// keyed by signing address. The default signer address should be used when
 /// no specific signer address is specified.
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 #[auto_impl(&, &mut, Box, Rc, Arc)]
 pub trait NetworkWallet<N: Network>: std::fmt::Debug + Send + Sync {
     /// Get the default signer address. This address should be used
@@ -31,11 +33,11 @@ pub trait NetworkWallet<N: Network>: std::fmt::Debug + Send + Sync {
     /// Asynchronously sign an unsigned transaction, with a specified
     /// credential.
     #[doc(alias = "sign_tx_from")]
-    fn sign_transaction_from(
+    async fn sign_transaction_from(
         &self,
         sender: Address,
         tx: N::UnsignedTx,
-    ) -> impl_future!(<Output = alloy_signer::Result<N::TxEnvelope>>);
+    ) -> alloy_signer::Result<N::TxEnvelope>;
 
     /// Asynchronously sign an unsigned transaction.
     #[doc(alias = "sign_tx")]
@@ -48,15 +50,13 @@ pub trait NetworkWallet<N: Network>: std::fmt::Debug + Send + Sync {
 
     /// Asynchronously sign a transaction request, using the sender specified
     /// in the `from` field.
-    fn sign_request(
+    async fn sign_request(
         &self,
         request: N::TransactionRequest,
-    ) -> impl_future!(<Output = alloy_signer::Result<N::TxEnvelope>>) {
-        async move {
-            let sender = request.from().unwrap_or_else(|| self.default_signer_address());
-            let tx = request.build_unsigned().map_err(alloy_signer::Error::other)?;
-            self.sign_transaction_from(sender, tx).await
-        }
+    ) -> alloy_signer::Result<N::TxEnvelope> {
+        let sender = request.from().unwrap_or_else(|| self.default_signer_address());
+        let tx = request.build_unsigned().map_err(alloy_signer::Error::other)?;
+        self.sign_transaction_from(sender, tx).await
     }
 }
 

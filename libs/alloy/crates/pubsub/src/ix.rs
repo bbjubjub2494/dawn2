@@ -1,5 +1,5 @@
 use crate::{managers::InFlight, RawSubscription};
-use alloy_primitives::B256;
+use alloy_primitives::U256;
 use std::fmt;
 use tokio::sync::oneshot;
 
@@ -8,9 +8,9 @@ pub(crate) enum PubSubInstruction {
     /// Send a request.
     Request(InFlight),
     /// Get the subscription ID for a local ID.
-    GetSub(B256, oneshot::Sender<RawSubscription>),
+    GetSub(U256, oneshot::Sender<RawSubscription>),
     /// Unsubscribe from a subscription.
-    Unsubscribe(B256),
+    Unsubscribe(U256),
 }
 
 impl fmt::Debug for PubSubInstruction {

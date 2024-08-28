@@ -7,7 +7,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
 mod traits;
-pub use traits::{BlockResponse, HeaderResponse, ReceiptResponse, TransactionResponse};
+pub use traits::{ReceiptResponse, TransactionResponse};
 
 mod block;
 pub use block::{BlockTransactionHashes, BlockTransactions, BlockTransactionsKind};

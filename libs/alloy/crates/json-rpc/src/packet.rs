@@ -194,10 +194,9 @@ where
     }
 }
 
-/// A [`BorrowedResponsePacket`] is a [`ResponsePacket`] that has been partially deserialized,
-/// borrowing its contents from the deserializer.
-///
-/// This is used primarily for intermediate deserialization. Most users will not require it.
+/// A [`BorrowedResponsePacket`] is a [`ResponsePacket`] that has been partially
+/// deserialized, borrowing its contents from the deserializer. This is used
+/// primarily for intermediate deserialization. Most users will not require it.
 ///
 /// See the [top-level docs] for more info.
 ///

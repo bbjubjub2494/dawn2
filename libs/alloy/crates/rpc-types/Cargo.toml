@@ -23,7 +23,6 @@ alloy-serde.workspace = true
 alloy-rpc-types-admin = { workspace = true, optional = true }
 alloy-rpc-types-anvil = { workspace = true, optional = true }
 alloy-rpc-types-beacon = { workspace = true, optional = true }
-alloy-rpc-types-debug = { workspace = true, optional = true }
 alloy-rpc-types-engine = { workspace = true, optional = true }
 alloy-rpc-types-eth = { workspace = true, optional = true }
 alloy-rpc-types-mev = { workspace = true, optional = true }
@@ -35,11 +34,10 @@ serde = { workspace = true, features = ["derive", "std"]}
 serde_json.workspace = true
 
 [features]
-default = ["eth", "alloy-rpc-types-engine?/default"]
+default = ["eth"]
 admin = ["dep:alloy-rpc-types-admin"]
 anvil = ["dep:alloy-rpc-types-anvil"]
 beacon = ["dep:alloy-rpc-types-beacon"]
-debug = ["dep:alloy-rpc-types-debug"]
 engine = ["dep:alloy-rpc-types-engine"]
 eth = ["dep:alloy-rpc-types-eth"]
 mev = ["dep:alloy-rpc-types-mev"]

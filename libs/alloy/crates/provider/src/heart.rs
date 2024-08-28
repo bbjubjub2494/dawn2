@@ -5,7 +5,7 @@ use alloy_json_rpc::RpcError;
 use alloy_network::Network;
 use alloy_primitives::{TxHash, B256};
 use alloy_rpc_types_eth::Block;
-use alloy_transport::{utils::Spawnable, Transport, TransportError};
+use alloy_transport::{utils::Spawnable, Transport, TransportErrorKind, TransportResult};
 use futures::{stream::StreamExt, FutureExt, Stream};
 use std::{
     collections::{BTreeMap, HashMap, HashSet, VecDeque},
@@ -17,26 +17,6 @@ use tokio::{
     select,
     sync::{mpsc, oneshot, watch},
 };
-
-/// Errors which may occur when watching a pending transaction.
-#[derive(Debug, thiserror::Error)]
-pub enum PendingTransactionError {
-    /// Failed to register pending transaction in heartbeat.
-    #[error("failed to register pending transaction to watch")]
-    FailedToRegister,
-
-    /// Underlying transport error.
-    #[error(transparent)]
-    TransportError(#[from] TransportError),
-
-    /// Error occured while getting response from the heartbeat.
-    #[error(transparent)]
-    Recv(#[from] oneshot::error::RecvError),
-
-    /// Errors that may occur when watching a transaction.
-    #[error(transparent)]
-    TxWatcher(#[from] WatchTxError),
-}
 
 /// A builder for configuring a pending transaction watcher.
 ///
@@ -177,7 +157,7 @@ impl<'a, T: Transport + Clone, N: Network> PendingTransactionBuilder<'a, T, N> {
     /// - [`get_receipt`](Self::get_receipt) for fetching the receipt after the transaction has been
     ///   confirmed.
     #[doc(alias = "build")]
-    pub async fn register(self) -> Result<PendingTransaction, PendingTransactionError> {
+    pub async fn register(self) -> TransportResult<PendingTransaction> {
         self.provider.watch_pending_transaction(self.config).await
     }
 
@@ -188,7 +168,7 @@ impl<'a, T: Transport + Clone, N: Network> PendingTransactionBuilder<'a, T, N> {
     ///   confirmed.
     /// - [`get_receipt`](Self::get_receipt) for fetching the receipt after the transaction has been
     ///   confirmed.
-    pub async fn watch(self) -> Result<TxHash, PendingTransactionError> {
+    pub async fn watch(self) -> TransportResult<TxHash> {
         self.register().await?.await
     }
 
@@ -203,7 +183,7 @@ impl<'a, T: Transport + Clone, N: Network> PendingTransactionBuilder<'a, T, N> {
     /// - [`register`](Self::register): for registering the transaction without waiting for it to be
     ///   confirmed.
     /// - [`watch`](Self::watch) for watching the transaction without fetching the receipt.
-    pub async fn get_receipt(self) -> Result<N::ReceiptResponse, PendingTransactionError> {
+    pub async fn get_receipt(self) -> TransportResult<N::ReceiptResponse> {
         let hash = self.config.tx_hash;
         let mut pending_tx = self.provider.watch_pending_transaction(self.config).await?;
 
@@ -229,7 +209,7 @@ impl<'a, T: Transport + Clone, N: Network> PendingTransactionBuilder<'a, T, N> {
             }
 
             if confirmed {
-                return Err(RpcError::NullResp.into());
+                return Err(RpcError::NullResp);
             }
         }
     }
@@ -323,28 +303,20 @@ impl PendingTransactionConfig {
     }
 }
 
-/// Errors which may occur in heartbeat when watching a transaction.
-#[derive(Debug, thiserror::Error)]
-pub enum WatchTxError {
-    /// Transaction was not confirmed after configured timeout.
-    #[error("transaction was not confirmed within the timeout")]
-    Timeout,
-}
-
 #[doc(alias = "TransactionWatcher")]
 struct TxWatcher {
     config: PendingTransactionConfig,
     /// The block at which the transaction was received. To be filled once known.
     /// Invariant: any confirmed transaction in `Heart` has this value set.
     received_at_block: Option<u64>,
-    tx: oneshot::Sender<Result<(), WatchTxError>>,
+    tx: oneshot::Sender<()>,
 }
 
 impl TxWatcher {
     /// Notify the waiter.
-    fn notify(self, result: Result<(), WatchTxError>) {
+    fn notify(self) {
         debug!(tx=%self.config.tx_hash, "notifying");
-        let _ = self.tx.send(result);
+        let _ = self.tx.send(());
     }
 }
 
@@ -360,7 +332,7 @@ pub struct PendingTransaction {
     pub(crate) tx_hash: TxHash,
     /// The receiver for the notification.
     // TODO: send a receipt?
-    pub(crate) rx: oneshot::Receiver<Result<(), WatchTxError>>,
+    pub(crate) rx: oneshot::Receiver<()>,
 }
 
 impl fmt::Debug for PendingTransaction {
@@ -373,7 +345,7 @@ impl PendingTransaction {
     /// Creates a ready pending transaction.
     pub fn ready(tx_hash: TxHash) -> Self {
         let (tx, rx) = oneshot::channel();
-        tx.send(Ok(())).ok(); // Make sure that the receiver is notified already.
+        tx.send(()).ok(); // Make sure that the receiver is notified already.
         Self { tx_hash, rx }
     }
 
@@ -385,16 +357,15 @@ impl PendingTransaction {
 }
 
 impl Future for PendingTransaction {
-    type Output = Result<TxHash, PendingTransactionError>;
+    type Output = TransportResult<TxHash>;
 
     fn poll(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
-        self.rx.poll_unpin(cx).map(|res| {
-            res??;
-            Ok(self.tx_hash)
-        })
+        self.rx
+            .poll_unpin(cx)
+            .map(|res| res.map(|()| self.tx_hash).map_err(|_| TransportErrorKind::backend_gone()))
     }
 }
 
@@ -466,7 +437,7 @@ impl<S> Heartbeat<S> {
         let to_keep = self.waiting_confs.split_off(&(current_height + 1));
         let to_notify = std::mem::replace(&mut self.waiting_confs, to_keep);
         for watcher in to_notify.into_values().flatten() {
-            watcher.notify(Ok(()));
+            watcher.notify();
         }
     }
 
@@ -486,9 +457,8 @@ impl<S> Heartbeat<S> {
         let to_reap = std::mem::replace(&mut self.reap_at, to_keep);
 
         for tx_hash in to_reap.values() {
-            if let Some(watcher) = self.unconfirmed.remove(tx_hash) {
+            if self.unconfirmed.remove(tx_hash).is_some() {
                 debug!(tx=%tx_hash, "reaped");
-                watcher.notify(Err(WatchTxError::Timeout));
             }
         }
     }
@@ -540,7 +510,7 @@ impl<S> Heartbeat<S> {
                 let current_height = self.past_blocks.back().map(|(h, _)| *h).unwrap();
 
                 if confirmed_at <= current_height {
-                    to_watch.notify(Ok(()));
+                    to_watch.notify();
                 } else {
                     debug!(tx=%to_watch.config.tx_hash, %block_height, confirmations, "adding to waiting list");
                     self.waiting_confs.entry(confirmed_at).or_default().push(to_watch);
@@ -563,7 +533,7 @@ impl<S> Heartbeat<S> {
     /// the latest block.
     fn handle_new_block(&mut self, block: Block, latest: &watch::Sender<Option<Block>>) {
         // Blocks without numbers are ignored, as they're not part of the chain.
-        let block_height = &block.header.number;
+        let Some(block_height) = &block.header.number else { return };
 
         // Add the block the lookbehind.
         // The value is chosen arbitrarily to not have a huge memory footprint but still
@@ -597,7 +567,7 @@ impl<S> Heartbeat<S> {
             // If `confirmations` is not more than 1 we can notify the watcher immediately.
             let confirmations = watcher.config.required_confirmations;
             if confirmations <= 1 {
-                watcher.notify(Ok(()));
+                watcher.notify();
                 continue;
             }
             // Otherwise add it to the waiting list.

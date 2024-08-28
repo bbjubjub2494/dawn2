@@ -230,20 +230,6 @@ impl Transaction for TxEip4844Variant {
         }
     }
 
-    fn priority_fee_or_price(&self) -> u128 {
-        match self {
-            Self::TxEip4844(tx) => tx.priority_fee_or_price(),
-            Self::TxEip4844WithSidecar(tx) => tx.priority_fee_or_price(),
-        }
-    }
-
-    fn max_fee_per_blob_gas(&self) -> Option<u128> {
-        match self {
-            Self::TxEip4844(tx) => tx.max_fee_per_blob_gas(),
-            Self::TxEip4844WithSidecar(tx) => tx.max_fee_per_blob_gas(),
-        }
-    }
-
     fn to(&self) -> TxKind {
         match self {
             Self::TxEip4844(tx) => tx.to,
@@ -266,26 +252,11 @@ impl Transaction for TxEip4844Variant {
         }
     }
 
-    fn ty(&self) -> u8 {
-        TxType::Eip4844 as u8
-    }
-
     fn access_list(&self) -> Option<&AccessList> {
         match self {
             Self::TxEip4844(tx) => tx.access_list(),
             Self::TxEip4844WithSidecar(tx) => tx.access_list(),
         }
-    }
-
-    fn blob_versioned_hashes(&self) -> Option<&[B256]> {
-        match self {
-            Self::TxEip4844(tx) => tx.blob_versioned_hashes(),
-            Self::TxEip4844WithSidecar(tx) => tx.blob_versioned_hashes(),
-        }
-    }
-
-    fn authorization_list(&self) -> Option<&[SignedAuthorization]> {
-        None
     }
 }
 
@@ -707,14 +678,6 @@ impl Transaction for TxEip4844 {
         Some(self.max_priority_fee_per_gas)
     }
 
-    fn priority_fee_or_price(&self) -> u128 {
-        self.max_priority_fee_per_gas
-    }
-
-    fn max_fee_per_blob_gas(&self) -> Option<u128> {
-        Some(self.max_fee_per_blob_gas)
-    }
-
     fn to(&self) -> TxKind {
         self.to.into()
     }
@@ -727,20 +690,8 @@ impl Transaction for TxEip4844 {
         &self.input
     }
 
-    fn ty(&self) -> u8 {
-        TxType::Eip4844 as u8
-    }
-
     fn access_list(&self) -> Option<&AccessList> {
         Some(&self.access_list)
-    }
-
-    fn blob_versioned_hashes(&self) -> Option<&[B256]> {
-        Some(&self.blob_versioned_hashes)
-    }
-
-    fn authorization_list(&self) -> Option<&[SignedAuthorization]> {
-        None
     }
 }
 
@@ -980,14 +931,6 @@ impl Transaction for TxEip4844WithSidecar {
         self.tx.max_priority_fee_per_gas()
     }
 
-    fn priority_fee_or_price(&self) -> u128 {
-        self.tx.priority_fee_or_price()
-    }
-
-    fn max_fee_per_blob_gas(&self) -> Option<u128> {
-        self.tx.max_fee_per_blob_gas()
-    }
-
     fn to(&self) -> TxKind {
         self.tx.to()
     }
@@ -1000,20 +943,8 @@ impl Transaction for TxEip4844WithSidecar {
         self.tx.input()
     }
 
-    fn ty(&self) -> u8 {
-        TxType::Eip4844 as u8
-    }
-
     fn access_list(&self) -> Option<&AccessList> {
         Some(&self.tx.access_list)
-    }
-
-    fn blob_versioned_hashes(&self) -> Option<&[B256]> {
-        self.tx.blob_versioned_hashes()
-    }
-
-    fn authorization_list(&self) -> Option<&[SignedAuthorization]> {
-        None
     }
 }
 

@@ -111,16 +111,16 @@ impl Serialize for TxpoolInspectSummary {
 ///
 /// See [here](https://geth.ethereum.org/docs/rpc/ns-txpool#txpool_content) for more details
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TxpoolContent<T = Transaction> {
+pub struct TxpoolContent {
     /// pending tx
-    pub pending: BTreeMap<Address, BTreeMap<String, T>>,
+    pub pending: BTreeMap<Address, BTreeMap<String, Transaction>>,
     /// queued tx
-    pub queued: BTreeMap<Address, BTreeMap<String, T>>,
+    pub queued: BTreeMap<Address, BTreeMap<String, Transaction>>,
 }
 
-impl<T> TxpoolContent<T> {
+impl TxpoolContent {
     /// Removes the transactions from the given sender
-    pub fn remove_from(&mut self, sender: &Address) -> TxpoolContentFrom<T> {
+    pub fn remove_from(&mut self, sender: &Address) -> TxpoolContentFrom {
         TxpoolContentFrom {
             pending: self.pending.remove(sender).unwrap_or_default(),
             queued: self.queued.remove(sender).unwrap_or_default(),
@@ -134,11 +134,11 @@ impl<T> TxpoolContent<T> {
 ///
 /// See [here](https://geth.ethereum.org/docs/rpc/ns-txpool#txpool_contentFrom) for more details
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TxpoolContentFrom<T = Transaction> {
+pub struct TxpoolContentFrom {
     /// pending tx
-    pub pending: BTreeMap<String, T>,
+    pub pending: BTreeMap<String, Transaction>,
     /// queued tx
-    pub queued: BTreeMap<String, T>,
+    pub queued: BTreeMap<String, Transaction>,
 }
 
 /// Transaction Pool Inspect

@@ -20,9 +20,6 @@ pub use alloy_rpc_types_anvil as anvil;
 #[cfg(feature = "beacon")]
 pub use alloy_rpc_types_beacon as beacon;
 
-#[cfg(feature = "debug")]
-pub use alloy_rpc_types_debug as debug;
-
 #[cfg(feature = "engine")]
 pub use alloy_rpc_types_engine as engine;
 

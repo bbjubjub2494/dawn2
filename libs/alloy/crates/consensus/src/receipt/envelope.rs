@@ -37,11 +37,6 @@ pub enum ReceiptEnvelope<T = Log> {
     /// [EIP-4844]: https://eips.ethereum.org/EIPS/eip-4844
     #[cfg_attr(feature = "serde", serde(rename = "0x3", alias = "0x03"))]
     Eip4844(ReceiptWithBloom<T>),
-    /// Receipt envelope with type flag 4, containing a [EIP-7702] receipt.
-    ///
-    /// [EIP-7702]: https://eips.ethereum.org/EIPS/eip-7702
-    #[cfg_attr(feature = "serde", serde(rename = "0x4", alias = "0x04"))]
-    Eip7702(ReceiptWithBloom<T>),
     // no Encrypted variant because encrypted transactions cannot be executed
     DawnDecrypted(ReceiptWithBloom<T>),
 }
@@ -55,7 +50,6 @@ impl<T> ReceiptEnvelope<T> {
             Self::Eip2930(_) => TxType::Eip2930,
             Self::Eip1559(_) => TxType::Eip1559,
             Self::Eip4844(_) => TxType::Eip4844,
-            Self::Eip7702(_) => TxType::Eip7702,
             Self::DawnDecrypted(_) => TxType::DawnDecrypted,
         }
     }
@@ -93,7 +87,6 @@ impl<T> ReceiptEnvelope<T> {
             | Self::Eip2930(t)
             | Self::Eip1559(t)
             | Self::Eip4844(t)
-            | Self::Eip7702(t)
             | Self::DawnDecrypted(t) => Some(t),
         }
     }
@@ -106,7 +99,6 @@ impl<T> ReceiptEnvelope<T> {
             | Self::Eip2930(t)
             | Self::Eip1559(t)
             | Self::Eip4844(t)
-            | Self::Eip7702(t)
             | Self::DawnDecrypted(t) => Some(&t.receipt),
         }
     }
@@ -185,7 +177,6 @@ impl Encodable2718 for ReceiptEnvelope {
             Self::Eip2930(_) => Some(TxType::Eip2930 as u8),
             Self::Eip1559(_) => Some(TxType::Eip1559 as u8),
             Self::Eip4844(_) => Some(TxType::Eip4844 as u8),
-            Self::Eip7702(_) => Some(TxType::Eip7702 as u8),
             Self::DawnDecrypted(_) => Some(TxType::DawnDecrypted as u8),
         }
     }
@@ -210,7 +201,6 @@ impl Decodable2718 for ReceiptEnvelope {
             TxType::Eip2930 => Ok(Self::Eip2930(receipt)),
             TxType::Eip1559 => Ok(Self::Eip1559(receipt)),
             TxType::Eip4844 => Ok(Self::Eip4844(receipt)),
-            TxType::Eip7702 => Ok(Self::Eip7702(receipt)),
             TxType::DawnDecrypted => Ok(Self::DawnDecrypted(receipt)),
             ty => Err(Eip2718Error::UnexpectedType(ty.into())),
         }
@@ -234,7 +224,6 @@ where
             1 => Ok(Self::Eip2930(receipt)),
             2 => Ok(Self::Eip1559(receipt)),
             3 => Ok(Self::Eip4844(receipt)),
-            4 => Ok(Self::Eip7702(receipt)),
             6 => Ok(Self::DawnDecrypted(receipt)),
             _ => unreachable!(),
         }

@@ -1,6 +1,6 @@
 //! This module extends the Ethereum JSON-RPC provider with the Trace namespace's RPC methods.
 use crate::{Provider, RpcWithBlock};
-use alloy_eips::BlockId;
+use alloy_eips::BlockNumberOrTag;
 use alloy_network::Network;
 use alloy_primitives::TxHash;
 use alloy_rpc_types_eth::Index;
@@ -81,20 +81,23 @@ where
     /// # Note
     ///
     /// Not all nodes support this call.
-    async fn trace_block(&self, block: BlockId) -> TransportResult<Vec<LocalizedTransactionTrace>>;
+    async fn trace_block(
+        &self,
+        block: BlockNumberOrTag,
+    ) -> TransportResult<Vec<LocalizedTransactionTrace>>;
 
     /// Replays a transaction.
     async fn trace_replay_transaction(
         &self,
         hash: TxHash,
-        trace_types: &[TraceType],
+        trace_type: &[TraceType],
     ) -> TransportResult<TraceResults>;
 
     /// Replays all transactions in the given block.
     async fn trace_replay_block_transactions(
         &self,
-        block: BlockId,
-        trace_types: &[TraceType],
+        block: BlockNumberOrTag,
+        trace_type: &[TraceType],
     ) -> TransportResult<Vec<TraceResultsWithTransactionHash>>;
 }
 
@@ -109,10 +112,10 @@ where
     fn trace_call<'a, 'b>(
         &self,
         request: &'a <N as Network>::TransactionRequest,
-        trace_types: &'b [TraceType],
+        trace_type: &'b [TraceType],
     ) -> RpcWithBlock<T, (&'a <N as Network>::TransactionRequest, &'b [TraceType]), TraceResults>
     {
-        RpcWithBlock::new(self.weak_client(), "trace_call", (request, trace_types))
+        RpcWithBlock::new(self.weak_client(), "trace_call", (request, trace_type))
     }
 
     fn trace_call_many<'a>(
@@ -141,9 +144,9 @@ where
     async fn trace_raw_transaction(
         &self,
         data: &[u8],
-        trace_types: &[TraceType],
+        trace_type: &[TraceType],
     ) -> TransportResult<TraceResults> {
-        self.client().request("trace_rawTransaction", (data, trace_types)).await
+        self.client().request("trace_rawTransaction", (data, trace_type)).await
     }
 
     async fn trace_filter(
@@ -153,31 +156,33 @@ where
         self.client().request("trace_filter", (tracer,)).await
     }
 
-    async fn trace_block(&self, block: BlockId) -> TransportResult<Vec<LocalizedTransactionTrace>> {
+    async fn trace_block(
+        &self,
+        block: BlockNumberOrTag,
+    ) -> TransportResult<Vec<LocalizedTransactionTrace>> {
         self.client().request("trace_block", (block,)).await
     }
 
     async fn trace_replay_transaction(
         &self,
         hash: TxHash,
-        trace_types: &[TraceType],
+        trace_type: &[TraceType],
     ) -> TransportResult<TraceResults> {
-        self.client().request("trace_replayTransaction", (hash, trace_types)).await
+        self.client().request("trace_replayTransaction", (hash, trace_type)).await
     }
 
     async fn trace_replay_block_transactions(
         &self,
-        block: BlockId,
-        trace_types: &[TraceType],
+        block: BlockNumberOrTag,
+        trace_type: &[TraceType],
     ) -> TransportResult<Vec<TraceResultsWithTransactionHash>> {
-        self.client().request("trace_replayBlockTransactions", (block, trace_types)).await
+        self.client().request("trace_replayBlockTransactions", (block, trace_type)).await
     }
 }
 
 #[cfg(test)]
 mod test {
     use crate::ProviderBuilder;
-    use alloy_eips::BlockNumberOrTag;
 
     use super::*;
 
@@ -189,7 +194,7 @@ mod test {
     async fn test_trace_block() {
         init_tracing();
         let provider = ProviderBuilder::new().on_anvil();
-        let traces = provider.trace_block(BlockId::Number(BlockNumberOrTag::Latest)).await.unwrap();
+        let traces = provider.trace_block(BlockNumberOrTag::Latest).await.unwrap();
         assert_eq!(traces.len(), 0);
     }
 }

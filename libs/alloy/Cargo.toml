@@ -54,7 +54,6 @@ alloy-rpc-client = { version = "0.2", path = "crates/rpc-client", default-featur
 alloy-rpc-types-admin = { version = "0.2", path = "crates/rpc-types-admin", default-features = false }
 alloy-rpc-types-anvil = { version = "0.2", path = "crates/rpc-types-anvil", default-features = false }
 alloy-rpc-types-beacon = { version = "0.2", path = "crates/rpc-types-beacon", default-features = false }
-alloy-rpc-types-debug = { version = "0.2", path = "crates/rpc-types-debug", default-features = false }
 alloy-rpc-types-engine = { version = "0.2", path = "crates/rpc-types-engine", default-features = false }
 alloy-rpc-types-eth = { version = "0.2", path = "crates/rpc-types-eth", default-features = false }
 alloy-rpc-types-mev = { version = "0.2", path = "crates/rpc-types-mev", default-features = false }
@@ -133,7 +132,7 @@ semver = "1.0"
 thiserror = "1.0"
 thiserror-no-std = "2.0.2"
 url = "2.5"
-derive_more = "1.0.0"
+derive_more = "0.99.17"
 
 ## serde
 serde = { path = "../serde-sgx/serde", default-features = false, features = [

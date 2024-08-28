@@ -12,7 +12,7 @@ use std::{
         HashSet,
     },
     hash::Hash,
-    ops::{RangeFrom, RangeInclusive, RangeToInclusive},
+    ops::{Range, RangeFrom, RangeTo},
 };
 use thiserror::Error;
 
@@ -277,17 +277,16 @@ impl From<u64> for FilterBlockOption {
     }
 }
 
-impl<T: Into<BlockNumberOrTag>> From<RangeInclusive<T>> for FilterBlockOption {
-    fn from(r: RangeInclusive<T>) -> Self {
-        let (start, end) = r.into_inner();
-        let from_block = Some(start.into());
-        let to_block = Some(end.into());
+impl<T: Into<BlockNumberOrTag>> From<Range<T>> for FilterBlockOption {
+    fn from(r: Range<T>) -> Self {
+        let from_block = Some(r.start.into());
+        let to_block = Some(r.end.into());
         Self::Range { from_block, to_block }
     }
 }
 
-impl<T: Into<BlockNumberOrTag>> From<RangeToInclusive<T>> for FilterBlockOption {
-    fn from(r: RangeToInclusive<T>) -> Self {
+impl<T: Into<BlockNumberOrTag>> From<RangeTo<T>> for FilterBlockOption {
+    fn from(r: RangeTo<T>) -> Self {
         let to_block = Some(r.end.into());
         Self::Range { from_block: Some(BlockNumberOrTag::Earliest), to_block }
     }
@@ -372,7 +371,7 @@ impl Filter {
     /// ```rust
     /// # use alloy_rpc_types_eth::Filter;
     /// # fn main() {
-    /// let filter = Filter::new().select(0u64..=100u64);
+    /// let filter = Filter::new().select(0u64..100u64);
     /// # }
     /// ```
     ///
@@ -390,7 +389,7 @@ impl Filter {
     /// ```rust
     /// # use alloy_rpc_types_eth::Filter;
     /// # fn main() {
-    /// let filter = Filter::new().select(..=1337u64);
+    /// let filter = Filter::new().select(..1337u64);
     /// # }
     /// ```
     #[must_use]

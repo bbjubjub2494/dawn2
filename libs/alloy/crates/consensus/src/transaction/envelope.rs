@@ -1,11 +1,6 @@
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
 use core::fmt;
 
-use crate::{
-    Signed, Transaction, TxDawnDecrypted, TxDawnEncrypted, TxEip1559, TxEip2930, TxEip7702,
-    TxLegacy,
-};
+use crate::{Signed, Transaction, TxDawnDecrypted, TxDawnEncrypted, TxEip1559, TxEip2930, TxLegacy};
 use alloy_eips::{
     eip2718::{Decodable2718, Eip2718Error, Eip2718Result, Encodable2718},
     eip2930::AccessList,
@@ -15,14 +10,13 @@ use alloy_rlp::{Decodable, Encodable, Header};
 
 use crate::transaction::eip4844::{TxEip4844, TxEip4844Variant, TxEip4844WithSidecar};
 
-/// Ethereum `TransactionType` flags as specified in EIPs [2718], [1559], [2930],
-/// [4844], and [7702].
+/// Ethereum `TransactionType` flags as specified in EIPs [2718], [1559], and
+/// [2930].
 ///
 /// [2718]: https://eips.ethereum.org/EIPS/eip-2718
 /// [1559]: https://eips.ethereum.org/EIPS/eip-1559
 /// [2930]: https://eips.ethereum.org/EIPS/eip-2930
 /// [4844]: https://eips.ethereum.org/EIPS/eip-4844
-/// [7702]: https://eips.ethereum.org/EIPS/eip-7702
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[doc(alias = "TransactionType")]
@@ -35,8 +29,6 @@ pub enum TxType {
     Eip1559 = 2,
     /// EIP-4844 transaction type.
     Eip4844 = 3,
-    /// EIP-7702 transaction type.
-    Eip7702 = 4,
     /// Dawn Encrypted transaction type.
     DawnEncrypted = 5,
     /// Dawn Decrypted transaction type.
@@ -56,7 +48,6 @@ impl fmt::Display for TxType {
             Self::Eip2930 => write!(f, "EIP-2930"),
             Self::Eip1559 => write!(f, "EIP-1559"),
             Self::Eip4844 => write!(f, "EIP-4844"),
-            Self::Eip7702 => write!(f, "EIP-7702"),
             Self::DawnEncrypted => write!(f, "Dawn Encrypted"),
             Self::DawnDecrypted => write!(f, "Dawn Decrypted"),
         }
@@ -79,7 +70,6 @@ impl TryFrom<u8> for TxType {
             1 => Self::Eip2930,
             2 => Self::Eip1559,
             3 => Self::Eip4844,
-            4 => Self::Eip7702,
             5 => Self::DawnEncrypted,
             6 => Self::DawnDecrypted,
             _ => return Err(Eip2718Error::UnexpectedType(value)),
@@ -122,9 +112,6 @@ pub enum TxEnvelope {
     /// send transactions to the network.
     #[cfg_attr(feature = "serde", serde(rename = "0x3", alias = "0x03"))]
     Eip4844(Signed<TxEip4844Variant>),
-    /// A [`TxEip7702`] tagged with type 4.
-    #[cfg_attr(feature = "serde", serde(rename = "0x4", alias = "0x04"))]
-    Eip7702(Signed<TxEip7702>),
     DawnEncrypted(Signed<TxDawnEncrypted>),
     DawnDecrypted(Signed<TxDawnDecrypted>),
 }
@@ -167,12 +154,6 @@ impl From<Signed<TxEip4844WithSidecar>> for TxEnvelope {
     }
 }
 
-impl From<Signed<TxEip7702>> for TxEnvelope {
-    fn from(v: Signed<TxEip7702>) -> Self {
-        Self::Eip7702(v)
-    }
-}
-
 impl From<Signed<TxDawnEncrypted>> for TxEnvelope {
     fn from(v: Signed<TxDawnEncrypted>) -> Self {
         Self::DawnEncrypted(v)
@@ -210,12 +191,6 @@ impl TxEnvelope {
         matches!(self, Self::Eip4844(_))
     }
 
-    /// Returns true if the transaction is an EIP-7702 transaction.
-    #[inline]
-    pub const fn is_eip7702(&self) -> bool {
-        matches!(self, Self::Eip7702(_))
-    }
-
     /// Returns the [`TxLegacy`] variant if the transaction is a legacy transaction.
     pub const fn as_legacy(&self) -> Option<&Signed<TxLegacy>> {
         match self {
@@ -248,14 +223,6 @@ impl TxEnvelope {
         }
     }
 
-    /// Returns the [`TxEip7702`] variant if the transaction is an EIP-7702 transaction.
-    pub const fn as_eip7702(&self) -> Option<&Signed<TxEip7702>> {
-        match self {
-            Self::Eip7702(tx) => Some(tx),
-            _ => None,
-        }
-    }
-
     /// Recover the signer of the transaction.
     #[cfg(feature = "k256")]
     pub fn recover_signer(
@@ -266,7 +233,6 @@ impl TxEnvelope {
             Self::Eip2930(tx) => tx.recover_signer(),
             Self::Eip1559(tx) => tx.recover_signer(),
             Self::Eip4844(tx) => tx.recover_signer(),
-            Self::Eip7702(tx) => tx.recover_signer(),
             Self::DawnEncrypted(tx) => tx.recover_signer(),
             Self::DawnDecrypted(tx) => tx.recover_signer(),
         }
@@ -279,7 +245,6 @@ impl TxEnvelope {
             Self::Eip2930(tx) => tx.signature_hash(),
             Self::Eip1559(tx) => tx.signature_hash(),
             Self::Eip4844(tx) => tx.signature_hash(),
-            Self::Eip7702(tx) => tx.signature_hash(),
             Self::DawnEncrypted(tx) => tx.signature_hash(),
             Self::DawnDecrypted(tx) => tx.signature_hash(),
         }
@@ -293,7 +258,6 @@ impl TxEnvelope {
             Self::Eip2930(tx) => tx.hash(),
             Self::Eip1559(tx) => tx.hash(),
             Self::Eip4844(tx) => tx.hash(),
-            Self::Eip7702(tx) => tx.hash(),
             Self::DawnEncrypted(tx) => tx.hash(),
             Self::DawnDecrypted(tx) => tx.hash(),
         }
@@ -307,7 +271,6 @@ impl TxEnvelope {
             Self::Eip2930(_) => TxType::Eip2930,
             Self::Eip1559(_) => TxType::Eip1559,
             Self::Eip4844(_) => TxType::Eip4844,
-            Self::Eip7702(_) => TxType::Eip7702,
             Self::DawnEncrypted(_) => TxType::DawnEncrypted,
             Self::DawnDecrypted(_) => TxType::DawnDecrypted,
         }
@@ -341,10 +304,6 @@ impl TxEnvelope {
                     outer_header.length() + outer_payload_length
                 }
             },
-            Self::Eip7702(t) => {
-                let payload_length = t.tx().fields_len() + t.signature().rlp_vrs_len();
-                Header { list: true, payload_length }.length() + payload_length
-            }
             Self::DawnEncrypted(t) => {
                 let payload_length = t.tx().fields_len() + t.signature().rlp_vrs_len();
                 Header { list: true, payload_length }.length() + payload_length
@@ -403,7 +362,6 @@ impl Decodable2718 for TxEnvelope {
             TxType::Eip2930 => Ok(TxEip2930::decode_signed_fields(buf)?.into()),
             TxType::Eip1559 => Ok(TxEip1559::decode_signed_fields(buf)?.into()),
             TxType::Eip4844 => Ok(TxEip4844Variant::decode_signed_fields(buf)?.into()),
-            TxType::Eip7702 => Ok(TxEip7702::decode_signed_fields(buf)?.into()),
             TxType::DawnEncrypted => Ok(TxDawnEncrypted::decode_signed_fields(buf)?.into()),
             TxType::DawnDecrypted => Ok(TxDawnDecrypted::decode_signed_fields(buf)?.into()),
             TxType::Legacy => Err(Eip2718Error::UnexpectedType(0)),
@@ -422,7 +380,6 @@ impl Encodable2718 for TxEnvelope {
             Self::Eip2930(_) => Some(TxType::Eip2930.into()),
             Self::Eip1559(_) => Some(TxType::Eip1559.into()),
             Self::Eip4844(_) => Some(TxType::Eip4844.into()),
-            Self::Eip7702(_) => Some(TxType::Eip7702.into()),
             Self::DawnEncrypted(_) => Some(TxType::DawnEncrypted.into()),
             Self::DawnDecrypted(_) => Some(TxType::DawnDecrypted.into()),
         }
@@ -445,9 +402,6 @@ impl Encodable2718 for TxEnvelope {
             Self::Eip4844(tx) => {
                 tx.tx().encode_with_signature(tx.signature(), out, false);
             }
-            Self::Eip7702(tx) => {
-                tx.tx().encode_with_signature(tx.signature(), out, false);
-            }
             Self::DawnEncrypted(tx) => {
                 tx.tx().encode_with_signature(tx.signature(), out, false);
             }
@@ -465,7 +419,6 @@ impl Transaction for TxEnvelope {
             Self::Eip2930(tx) => tx.tx().chain_id(),
             Self::Eip1559(tx) => tx.tx().chain_id(),
             Self::Eip4844(tx) => tx.tx().chain_id(),
-            Self::Eip7702(tx) => tx.tx().chain_id(),
             Self::DawnEncrypted(tx) => tx.tx().chain_id(),
             Self::DawnDecrypted(tx) => tx.tx().chain_id(),
         }
@@ -477,7 +430,6 @@ impl Transaction for TxEnvelope {
             Self::Eip2930(tx) => tx.tx().gas_limit(),
             Self::Eip1559(tx) => tx.tx().gas_limit(),
             Self::Eip4844(tx) => tx.tx().gas_limit(),
-            Self::Eip7702(tx) => tx.tx().gas_limit(),
             Self::DawnEncrypted(tx) => tx.tx().gas_limit(),
             Self::DawnDecrypted(tx) => tx.tx().gas_limit(),
         }
@@ -489,57 +441,30 @@ impl Transaction for TxEnvelope {
             Self::Eip2930(tx) => tx.tx().gas_price(),
             Self::Eip1559(tx) => tx.tx().gas_price(),
             Self::Eip4844(tx) => tx.tx().gas_price(),
-            Self::Eip7702(tx) => tx.tx().gas_price(),
             Self::DawnEncrypted(tx) => tx.tx().gas_price(),
             Self::DawnDecrypted(tx) => tx.tx().gas_price(),
         }
     }
-
+    
     fn max_fee_per_gas(&self) -> u128 {
         match self {
             Self::Legacy(tx) => tx.tx().max_fee_per_gas(),
             Self::Eip2930(tx) => tx.tx().max_fee_per_gas(),
             Self::Eip1559(tx) => tx.tx().max_fee_per_gas(),
             Self::Eip4844(tx) => tx.tx().max_fee_per_gas(),
-            Self::Eip7702(tx) => tx.tx().max_fee_per_gas(),
             Self::DawnEncrypted(tx) => tx.tx().max_fee_per_gas(),
             Self::DawnDecrypted(tx) => tx.tx().max_fee_per_gas(),
         }
     }
-
+    
     fn max_priority_fee_per_gas(&self) -> Option<u128> {
         match self {
             Self::Legacy(tx) => tx.tx().max_priority_fee_per_gas(),
             Self::Eip2930(tx) => tx.tx().max_priority_fee_per_gas(),
             Self::Eip1559(tx) => tx.tx().max_priority_fee_per_gas(),
             Self::Eip4844(tx) => tx.tx().max_priority_fee_per_gas(),
-            Self::Eip7702(tx) => tx.tx().max_priority_fee_per_gas(),
             Self::DawnEncrypted(tx) => tx.tx().max_priority_fee_per_gas(),
             Self::DawnDecrypted(tx) => tx.tx().max_priority_fee_per_gas(),
-        }
-    }
-
-    fn priority_fee_or_price(&self) -> u128 {
-        match self {
-            Self::Legacy(tx) => tx.tx().priority_fee_or_price(),
-            Self::Eip2930(tx) => tx.tx().priority_fee_or_price(),
-            Self::Eip1559(tx) => tx.tx().priority_fee_or_price(),
-            Self::Eip4844(tx) => tx.tx().priority_fee_or_price(),
-            Self::Eip7702(tx) => tx.tx().priority_fee_or_price(),
-            Self::DawnEncrypted(tx) => tx.tx().priority_fee_or_price(),
-            Self::DawnDecrypted(tx) => tx.tx().priority_fee_or_price(),
-        }
-    }
-
-    fn max_fee_per_blob_gas(&self) -> Option<u128> {
-        match self {
-            Self::Legacy(tx) => tx.tx().max_fee_per_blob_gas(),
-            Self::Eip2930(tx) => tx.tx().max_fee_per_blob_gas(),
-            Self::Eip1559(tx) => tx.tx().max_fee_per_blob_gas(),
-            Self::Eip4844(tx) => tx.tx().max_fee_per_blob_gas(),
-            Self::Eip7702(tx) => tx.tx().max_fee_per_blob_gas(),
-            Self::DawnEncrypted(tx) => tx.tx().max_fee_per_blob_gas(),
-            Self::DawnDecrypted(tx) => tx.tx().max_fee_per_blob_gas(),
         }
     }
 
@@ -549,7 +474,6 @@ impl Transaction for TxEnvelope {
             Self::Eip2930(tx) => tx.tx().input(),
             Self::Eip1559(tx) => tx.tx().input(),
             Self::Eip4844(tx) => tx.tx().input(),
-            Self::Eip7702(tx) => tx.tx().input(),
             Self::DawnEncrypted(tx) => tx.tx().input(),
             Self::DawnDecrypted(tx) => tx.tx().input(),
         }
@@ -561,7 +485,6 @@ impl Transaction for TxEnvelope {
             Self::Eip2930(tx) => tx.tx().nonce(),
             Self::Eip1559(tx) => tx.tx().nonce(),
             Self::Eip4844(tx) => tx.tx().nonce(),
-            Self::Eip7702(tx) => tx.tx().nonce(),
             Self::DawnEncrypted(tx) => tx.tx().nonce(),
             Self::DawnDecrypted(tx) => tx.tx().nonce(),
         }
@@ -573,7 +496,6 @@ impl Transaction for TxEnvelope {
             Self::Eip2930(tx) => tx.tx().to(),
             Self::Eip1559(tx) => tx.tx().to(),
             Self::Eip4844(tx) => tx.tx().to(),
-            Self::Eip7702(tx) => tx.tx().to(),
             Self::DawnEncrypted(tx) => tx.tx().to(),
             Self::DawnDecrypted(tx) => tx.tx().to(),
         }
@@ -585,21 +507,8 @@ impl Transaction for TxEnvelope {
             Self::Eip2930(tx) => tx.tx().value(),
             Self::Eip1559(tx) => tx.tx().value(),
             Self::Eip4844(tx) => tx.tx().value(),
-            Self::Eip7702(tx) => tx.tx().value(),
             Self::DawnEncrypted(tx) => tx.tx().value(),
             Self::DawnDecrypted(tx) => tx.tx().value(),
-        }
-    }
-
-    fn ty(&self) -> u8 {
-        match self {
-            Self::Legacy(tx) => tx.tx().ty(),
-            Self::Eip2930(tx) => tx.tx().ty(),
-            Self::Eip1559(tx) => tx.tx().ty(),
-            Self::Eip4844(tx) => tx.tx().ty(),
-            Self::Eip7702(tx) => tx.tx().ty(),
-            Self::DawnEncrypted(tx) => tx.tx().ty(),
-            Self::DawnDecrypted(tx) => tx.tx().ty(),
         }
     }
 
@@ -609,33 +518,8 @@ impl Transaction for TxEnvelope {
             Self::Eip2930(tx) => tx.tx().access_list(),
             Self::Eip1559(tx) => tx.tx().access_list(),
             Self::Eip4844(tx) => tx.tx().access_list(),
-            Self::Eip7702(tx) => tx.tx().access_list(),
             Self::DawnEncrypted(tx) => tx.tx().access_list(),
             Self::DawnDecrypted(tx) => tx.tx().access_list(),
-        }
-    }
-
-    fn blob_versioned_hashes(&self) -> Option<&[B256]> {
-        match self {
-            Self::Legacy(tx) => tx.tx().blob_versioned_hashes(),
-            Self::Eip2930(tx) => tx.tx().blob_versioned_hashes(),
-            Self::Eip1559(tx) => tx.tx().blob_versioned_hashes(),
-            Self::Eip4844(tx) => tx.tx().blob_versioned_hashes(),
-            Self::Eip7702(tx) => tx.tx().blob_versioned_hashes(),
-            Self::DawnEncrypted(tx) => tx.tx().blob_versioned_hashes(),
-            Self::DawnDecrypted(tx) => tx.tx().blob_versioned_hashes(),
-        }
-    }
-
-    fn authorization_list(&self) -> Option<&[alloy_eips::eip7702::SignedAuthorization]> {
-        match self {
-            Self::Legacy(tx) => tx.tx().authorization_list(),
-            Self::Eip2930(tx) => tx.tx().authorization_list(),
-            Self::Eip1559(tx) => tx.tx().authorization_list(),
-            Self::Eip4844(tx) => tx.tx().authorization_list(),
-            Self::Eip7702(tx) => tx.tx().authorization_list(),
-            Self::DawnEncrypted(tx) => tx.tx().authorization_list(),
-            Self::DawnDecrypted(tx) => tx.tx().authorization_list(),
         }
     }
 }
@@ -647,12 +531,11 @@ mod tests {
     use alloy_eips::{
         eip2930::{AccessList, AccessListItem},
         eip4844::BlobTransactionSidecar,
-        eip7702::Authorization,
     };
     use alloy_primitives::{hex, Address, Parity, Signature, U256};
     #[allow(unused_imports)]
     use alloy_primitives::{Bytes, TxKind};
-    use std::{fs, path::PathBuf, str::FromStr, vec};
+    use std::{fs, path::PathBuf, vec};
 
     #[cfg(not(feature = "std"))]
     use std::vec::Vec;
@@ -899,31 +782,6 @@ mod tests {
     }
 
     #[test]
-    fn test_encode_decode_eip7702() {
-        let tx = TxEip7702 {
-            chain_id: 1u64,
-            nonce: 2,
-            gas_limit: 3,
-            max_fee_per_gas: 4,
-            max_priority_fee_per_gas: 5,
-            to: Address::left_padding_from(&[5]).into(),
-            value: U256::from(6_u64),
-            input: vec![7].into(),
-            access_list: AccessList(vec![AccessListItem {
-                address: Address::left_padding_from(&[8]),
-                storage_keys: vec![B256::left_padding_from(&[9])],
-            }]),
-            authorization_list: vec![(Authorization {
-                chain_id: U256::from(1),
-                address: Address::left_padding_from(&[10]),
-                nonce: 1u64,
-            })
-            .into_signed(Signature::from_str("48b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c8041b").unwrap())],
-        };
-        test_encode_decode_roundtrip(tx, None);
-    }
-
-    #[test]
     fn test_encode_decode_transaction_list() {
         let signature = Signature::test_signature();
         let tx = TxEnvelope::Eip1559(
@@ -1065,32 +923,6 @@ mod tests {
             },
             sidecar: Default::default(),
         });
-        test_serde_roundtrip(tx);
-    }
-
-    #[test]
-    #[cfg(feature = "serde")]
-    fn test_serde_roundtrip_eip7702() {
-        let tx = TxEip7702 {
-            chain_id: u64::MAX,
-            nonce: u64::MAX,
-            gas_limit: u128::MAX,
-            max_fee_per_gas: u128::MAX,
-            max_priority_fee_per_gas: u128::MAX,
-            to: Address::random().into(),
-            value: U256::MAX,
-            input: Bytes::new(),
-            access_list: AccessList(vec![AccessListItem {
-                address: Address::random(),
-                storage_keys: vec![B256::random()],
-            }]),
-            authorization_list: vec![(Authorization {
-                chain_id: U256::from(1),
-                address: Address::left_padding_from(&[1]),
-                nonce: 1u64,
-            })
-            .into_signed(Signature::from_str("48b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c8041b").unwrap())],
-        };
         test_serde_roundtrip(tx);
     }
 }

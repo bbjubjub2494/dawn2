@@ -304,14 +304,6 @@ impl Transaction for TxDawnDecrypted {
         Some(self.max_priority_fee_per_gas)
     }
 
-    fn priority_fee_or_price(&self) -> u128 {
-        self.max_priority_fee_per_gas
-    }
-
-    fn max_fee_per_blob_gas(&self) -> Option<u128> {
-        None
-    }
-
     fn to(&self) -> TxKind {
         self.to
     }
@@ -324,20 +316,8 @@ impl Transaction for TxDawnDecrypted {
         &self.input
     }
 
-    fn ty(&self) -> u8 {
-        TxType::Eip2930 as u8
-    }
-
     fn access_list(&self) -> Option<&AccessList> {
         Some(&self.access_list)
-    }
-
-    fn blob_versioned_hashes(&self) -> Option<&[B256]> {
-        None
-    }
-
-    fn authorization_list(&self) -> Option<&[SignedAuthorization]> {
-        None
     }
 }
 
