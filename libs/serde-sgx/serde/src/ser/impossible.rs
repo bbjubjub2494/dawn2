@@ -1,8 +1,8 @@
 //! This module contains `Impossible` serializer and its implementations.
 
-use lib::*;
+use crate::lib::*;
 
-use ser::{
+use crate::ser::{
     self, Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant,
     SerializeTuple, SerializeTupleStruct, SerializeTupleVariant,
 };
@@ -15,9 +15,9 @@ use ser::{
 /// [`SerializeTuple`], [`SerializeTupleStruct`], [`SerializeTupleVariant`],
 /// [`SerializeMap`], [`SerializeStruct`], and [`SerializeStructVariant`].
 ///
-/// ```edition2018
+/// ```edition2021
 /// # use serde::ser::{Serializer, Impossible};
-/// # use serde::private::ser::Error;
+/// # use serde::__private::doc::Error;
 /// #
 /// # struct MySerializer;
 /// #

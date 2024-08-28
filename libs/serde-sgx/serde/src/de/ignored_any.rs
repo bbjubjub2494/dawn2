@@ -1,6 +1,6 @@
-use lib::*;
+use crate::lib::*;
 
-use de::{
+use crate::de::{
     Deserialize, Deserializer, EnumAccess, Error, MapAccess, SeqAccess, VariantAccess, Visitor,
 };
 
@@ -10,13 +10,12 @@ use de::{
 /// any type, except that it does not store any information about the data that
 /// gets deserialized.
 ///
-/// ```edition2018
-/// use std::fmt;
-/// use std::marker::PhantomData;
-///
+/// ```edition2021
 /// use serde::de::{
 ///     self, Deserialize, DeserializeSeed, Deserializer, IgnoredAny, SeqAccess, Visitor,
 /// };
+/// use std::fmt;
+/// use std::marker::PhantomData;
 ///
 /// /// A seed that can be used to deserialize only the `n`th element of a sequence
 /// /// while efficiently discarding elements of any type before or after index `n`.
@@ -108,7 +107,7 @@ use de::{
 /// #     Ok(())
 /// # }
 /// ```
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct IgnoredAny;
 
 impl<'de> Visitor<'de> for IgnoredAny {
@@ -131,7 +130,19 @@ impl<'de> Visitor<'de> for IgnoredAny {
     }
 
     #[inline]
+    fn visit_i128<E>(self, x: i128) -> Result<Self::Value, E> {
+        let _ = x;
+        Ok(IgnoredAny)
+    }
+
+    #[inline]
     fn visit_u64<E>(self, x: u64) -> Result<Self::Value, E> {
+        let _ = x;
+        Ok(IgnoredAny)
+    }
+
+    #[inline]
+    fn visit_u128<E>(self, x: u128) -> Result<Self::Value, E> {
         let _ = x;
         Ok(IgnoredAny)
     }

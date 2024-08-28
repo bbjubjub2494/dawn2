@@ -1,6 +1,6 @@
-use lib::*;
+use crate::lib::*;
 
-use ser::{Error, Serialize, SerializeTuple, Serializer};
+use crate::ser::{Error, Serialize, SerializeTuple, Serializer};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -24,19 +24,16 @@ primitive_impl!(i8, serialize_i8);
 primitive_impl!(i16, serialize_i16);
 primitive_impl!(i32, serialize_i32);
 primitive_impl!(i64, serialize_i64);
+primitive_impl!(i128, serialize_i128);
 primitive_impl!(usize, serialize_u64 as u64);
 primitive_impl!(u8, serialize_u8);
 primitive_impl!(u16, serialize_u16);
 primitive_impl!(u32, serialize_u32);
 primitive_impl!(u64, serialize_u64);
+primitive_impl!(u128, serialize_u128);
 primitive_impl!(f32, serialize_f32);
 primitive_impl!(f64, serialize_f64);
 primitive_impl!(char, serialize_char);
-
-serde_if_integer128! {
-    primitive_impl!(i128, serialize_i128);
-    primitive_impl!(u128, serialize_u128);
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -51,6 +48,7 @@ impl Serialize for str {
 }
 
 #[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg_attr(doc_cfg, doc(cfg(any(feature = "std", feature = "alloc"))))]
 impl Serialize for String {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -72,7 +70,8 @@ impl<'a> Serialize for fmt::Arguments<'a> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", not(no_core_cstr)))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "std")))]
 impl Serialize for CStr {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -83,7 +82,8 @@ impl Serialize for CStr {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", all(not(no_core_cstr), feature = "alloc")))]
+#[cfg_attr(doc_cfg, doc(cfg(any(feature = "std", feature = "alloc"))))]
 impl Serialize for CString {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -149,9 +149,9 @@ macro_rules! array_impls {
                 where
                     S: Serializer,
                 {
-                    let mut seq = try!(serializer.serialize_tuple($len));
+                    let mut seq = tri!(serializer.serialize_tuple($len));
                     for e in self {
-                        try!(seq.serialize_element(e));
+                        tri!(seq.serialize_element(e));
                     }
                     seq.end()
                 }
@@ -182,9 +182,35 @@ where
     }
 }
 
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(not(no_relaxed_trait_bounds))]
 macro_rules! seq_impl {
-    ($ty:ident < T $(: $tbound1:ident $(+ $tbound2:ident)*)* $(, $typaram:ident : $bound:ident)* >) => {
+    (
+        $(#[$attr:meta])*
+        $ty:ident <T $(: $tbound1:ident $(+ $tbound2:ident)*)* $(, $typaram:ident : $bound:ident)*>
+    ) => {
+        $(#[$attr])*
+        impl<T $(, $typaram)*> Serialize for $ty<T $(, $typaram)*>
+        where
+            T: Serialize,
+        {
+            #[inline]
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer,
+            {
+                serializer.collect_seq(self)
+            }
+        }
+    }
+}
+
+#[cfg(no_relaxed_trait_bounds)]
+macro_rules! seq_impl {
+    (
+        $(#[$attr:meta])*
+        $ty:ident <T $(: $tbound1:ident $(+ $tbound2:ident)*)* $(, $typaram:ident : $bound:ident)*>
+    ) => {
+        $(#[$attr])*
         impl<T $(, $typaram)*> Serialize for $ty<T $(, $typaram)*>
         where
             T: Serialize $(+ $tbound1 $(+ $tbound2)*)*,
@@ -201,23 +227,41 @@ macro_rules! seq_impl {
     }
 }
 
-#[cfg(any(feature = "std", feature = "alloc"))]
-seq_impl!(BinaryHeap<T: Ord>);
+seq_impl! {
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    #[cfg_attr(doc_cfg, doc(cfg(any(feature = "std", feature = "alloc"))))]
+    BinaryHeap<T: Ord>
+}
 
-#[cfg(any(feature = "std", feature = "alloc"))]
-seq_impl!(BTreeSet<T: Ord>);
+seq_impl! {
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    #[cfg_attr(doc_cfg, doc(cfg(any(feature = "std", feature = "alloc"))))]
+    BTreeSet<T: Ord>
+}
 
-#[cfg(feature = "std")]
-seq_impl!(HashSet<T: Eq + Hash, H: BuildHasher>);
+seq_impl! {
+    #[cfg(feature = "std")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "std")))]
+    HashSet<T: Eq + Hash, H: BuildHasher>
+}
 
-#[cfg(any(feature = "std", feature = "alloc"))]
-seq_impl!(LinkedList<T>);
+seq_impl! {
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    #[cfg_attr(doc_cfg, doc(cfg(any(feature = "std", feature = "alloc"))))]
+    LinkedList<T>
+}
 
-#[cfg(any(feature = "std", feature = "alloc"))]
-seq_impl!(Vec<T>);
+seq_impl! {
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    #[cfg_attr(doc_cfg, doc(cfg(any(feature = "std", feature = "alloc"))))]
+    Vec<T>
+}
 
-#[cfg(any(feature = "std", feature = "alloc"))]
-seq_impl!(VecDeque<T>);
+seq_impl! {
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    #[cfg_attr(doc_cfg, doc(cfg(any(feature = "std", feature = "alloc"))))]
+    VecDeque<T>
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -239,7 +283,23 @@ where
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[cfg(range_inclusive)]
+impl<Idx> Serialize for RangeFrom<Idx>
+where
+    Idx: Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        use super::SerializeStruct;
+        let mut state = serializer.serialize_struct("RangeFrom", 1)?;
+        state.serialize_field("start", &self.start)?;
+        state.end()
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 impl<Idx> Serialize for RangeInclusive<Idx>
 where
     Idx: Serialize,
@@ -258,7 +318,23 @@ where
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[cfg(any(ops_bound, collections_bound))]
+impl<Idx> Serialize for RangeTo<Idx>
+where
+    Idx: Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        use super::SerializeStruct;
+        let mut state = serializer.serialize_struct("RangeTo", 1)?;
+        state.serialize_field("end", &self.end)?;
+        state.end()
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 impl<T> Serialize for Bound<T>
 where
     T: Serialize,
@@ -292,6 +368,7 @@ impl Serialize for () {
 }
 
 #[cfg(feature = "unstable")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "unstable")))]
 impl Serialize for ! {
     fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -315,9 +392,9 @@ macro_rules! tuple_impls {
                 where
                     S: Serializer,
                 {
-                    let mut tuple = try!(serializer.serialize_tuple($len));
+                    let mut tuple = tri!(serializer.serialize_tuple($len));
                     $(
-                        try!(tuple.serialize_element(&self.$n));
+                        tri!(tuple.serialize_element(&self.$n));
                     )+
                     tuple.end()
                 }
@@ -347,9 +424,36 @@ tuple_impls! {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[cfg(not(no_relaxed_trait_bounds))]
 macro_rules! map_impl {
-    ($ty:ident < K $(: $kbound1:ident $(+ $kbound2:ident)*)*, V $(, $typaram:ident : $bound:ident)* >) => {
+    (
+        $(#[$attr:meta])*
+        $ty:ident <K $(: $kbound1:ident $(+ $kbound2:ident)*)*, V $(, $typaram:ident : $bound:ident)*>
+    ) => {
+        $(#[$attr])*
+        impl<K, V $(, $typaram)*> Serialize for $ty<K, V $(, $typaram)*>
+        where
+            K: Serialize,
+            V: Serialize,
+        {
+            #[inline]
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer,
+            {
+                serializer.collect_map(self)
+            }
+        }
+    }
+}
+
+#[cfg(no_relaxed_trait_bounds)]
+macro_rules! map_impl {
+    (
+        $(#[$attr:meta])*
+        $ty:ident <K $(: $kbound1:ident $(+ $kbound2:ident)*)*, V $(, $typaram:ident : $bound:ident)*>
+    ) => {
+        $(#[$attr])*
         impl<K, V $(, $typaram)*> Serialize for $ty<K, V $(, $typaram)*>
         where
             K: Serialize $(+ $kbound1 $(+ $kbound2)*)*,
@@ -367,20 +471,26 @@ macro_rules! map_impl {
     }
 }
 
-#[cfg(any(feature = "std", feature = "alloc"))]
-map_impl!(BTreeMap<K: Ord, V>);
+map_impl! {
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    #[cfg_attr(doc_cfg, doc(cfg(any(feature = "std", feature = "alloc"))))]
+    BTreeMap<K: Ord, V>
+}
 
-#[cfg(feature = "std")]
-map_impl!(HashMap<K: Eq + Hash, V, H: BuildHasher>);
+map_impl! {
+    #[cfg(feature = "std")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "std")))]
+    HashMap<K: Eq + Hash, V, H: BuildHasher>
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
 macro_rules! deref_impl {
     (
-        $(#[doc = $doc:tt])*
+        $(#[$attr:meta])*
         <$($desc:tt)+
     ) => {
-        $(#[doc = $doc])*
+        $(#[$attr])*
         impl <$($desc)+ {
             #[inline]
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -393,13 +503,20 @@ macro_rules! deref_impl {
     };
 }
 
-deref_impl!(<'a, T: ?Sized> Serialize for &'a T where T: Serialize);
-deref_impl!(<'a, T: ?Sized> Serialize for &'a mut T where T: Serialize);
+deref_impl! {
+    <'a, T: ?Sized> Serialize for &'a T where T: Serialize
+}
 
-#[cfg(any(feature = "std", feature = "alloc"))]
-deref_impl!(<T: ?Sized> Serialize for Box<T> where T: Serialize);
+deref_impl! {
+    <'a, T: ?Sized> Serialize for &'a mut T where T: Serialize
+}
 
-#[cfg(all(feature = "rc", any(feature = "std", feature = "alloc")))]
+deref_impl! {
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    #[cfg_attr(doc_cfg, doc(cfg(any(feature = "std", feature = "alloc"))))]
+    <T: ?Sized> Serialize for Box<T> where T: Serialize
+}
+
 deref_impl! {
     /// This impl requires the [`"rc"`] Cargo feature of Serde.
     ///
@@ -409,10 +526,11 @@ deref_impl! {
     /// repeated data.
     ///
     /// [`"rc"`]: https://serde.rs/feature-flags.html#-features-rc
+    #[cfg(all(feature = "rc", any(feature = "std", feature = "alloc")))]
+    #[cfg_attr(doc_cfg, doc(cfg(all(feature = "rc", any(feature = "std", feature = "alloc")))))]
     <T: ?Sized> Serialize for Rc<T> where T: Serialize
 }
 
-#[cfg(all(feature = "rc", any(feature = "std", feature = "alloc")))]
 deref_impl! {
     /// This impl requires the [`"rc"`] Cargo feature of Serde.
     ///
@@ -422,11 +540,16 @@ deref_impl! {
     /// repeated data.
     ///
     /// [`"rc"`]: https://serde.rs/feature-flags.html#-features-rc
+    #[cfg(all(feature = "rc", any(feature = "std", feature = "alloc")))]
+    #[cfg_attr(doc_cfg, doc(cfg(all(feature = "rc", any(feature = "std", feature = "alloc")))))]
     <T: ?Sized> Serialize for Arc<T> where T: Serialize
 }
 
-#[cfg(any(feature = "std", feature = "alloc"))]
-deref_impl!(<'a, T: ?Sized> Serialize for Cow<'a, T> where T: Serialize + ToOwned);
+deref_impl! {
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    #[cfg_attr(doc_cfg, doc(cfg(any(feature = "std", feature = "alloc"))))]
+    <'a, T: ?Sized> Serialize for Cow<'a, T> where T: Serialize + ToOwned
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -434,6 +557,10 @@ deref_impl!(<'a, T: ?Sized> Serialize for Cow<'a, T> where T: Serialize + ToOwne
 ///
 /// [`"rc"`]: https://serde.rs/feature-flags.html#-features-rc
 #[cfg(all(feature = "rc", any(feature = "std", feature = "alloc")))]
+#[cfg_attr(
+    doc_cfg,
+    doc(cfg(all(feature = "rc", any(feature = "std", feature = "alloc"))))
+)]
 impl<T: ?Sized> Serialize for RcWeak<T>
 where
     T: Serialize,
@@ -450,6 +577,10 @@ where
 ///
 /// [`"rc"`]: https://serde.rs/feature-flags.html#-features-rc
 #[cfg(all(feature = "rc", any(feature = "std", feature = "alloc")))]
+#[cfg_attr(
+    doc_cfg,
+    doc(cfg(all(feature = "rc", any(feature = "std", feature = "alloc"))))
+)]
 impl<T: ?Sized> Serialize for ArcWeak<T>
 where
     T: Serialize,
@@ -465,9 +596,8 @@ where
 ////////////////////////////////////////////////////////////////////////////////
 
 macro_rules! nonzero_integers {
-    ( $( $T: ident, )+ ) => {
+    ($($T:ident,)+) => {
         $(
-            #[cfg(num_nonzero)]
             impl Serialize for num::$T {
                 fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where
@@ -478,14 +608,6 @@ macro_rules! nonzero_integers {
             }
         )+
     }
-}
-
-nonzero_integers! {
-    NonZeroU8,
-    NonZeroU16,
-    NonZeroU32,
-    NonZeroU64,
-    NonZeroUsize,
 }
 
 macro_rules! nonzero_signed_integers {
@@ -504,12 +626,13 @@ macro_rules! nonzero_signed_integers {
     }
 }
 
-#[cfg(num_nonzero_signed)]
-nonzero_signed_integers! {
+#[cfg(not(no_num_nonzero_signed))]
+nonzero_integers! {
     NonZeroI8,
     NonZeroI16,
     NonZeroI32,
     NonZeroI64,
+    NonZeroI128,
     NonZeroIsize,
 }
 
@@ -538,7 +661,7 @@ where
     }
 }
 
-impl<T> Serialize for RefCell<T>
+impl<T: ?Sized> Serialize for RefCell<T>
 where
     T: Serialize,
 {
@@ -557,7 +680,8 @@ where
 use std::sync::{SgxMutex as Mutex, SgxRwLock as RwLock};
 
 #[cfg(feature = "std")]
-impl<T> Serialize for Mutex<T>
+#[cfg_attr(doc_cfg, doc(cfg(feature = "std")))]
+impl<T: ?Sized> Serialize for Mutex<T>
 where
     T: Serialize,
 {
@@ -573,7 +697,8 @@ where
 }
 
 #[cfg(feature = "std")]
-impl<T> Serialize for RwLock<T>
+#[cfg_attr(doc_cfg, doc(cfg(feature = "std")))]
+impl<T: ?Sized> Serialize for RwLock<T>
 where
     T: Serialize,
 {
@@ -610,7 +735,6 @@ where
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[cfg(any(core_duration, feature = "std"))]
 impl Serialize for Duration {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -627,18 +751,20 @@ impl Serialize for Duration {
 ////////////////////////////////////////////////////////////////////////////////
 
 #[cfg(feature = "std")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "std")))]
 impl Serialize for SystemTime {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         use super::SerializeStruct;
-        let duration_since_epoch = self
-            .duration_since(UNIX_EPOCH)
-            .map_err(|_| S::Error::custom("SystemTime must be later than UNIX_EPOCH"))?;
-        let mut state = try!(serializer.serialize_struct("SystemTime", 2));
-        try!(state.serialize_field("secs_since_epoch", &duration_since_epoch.as_secs()));
-        try!(state.serialize_field("nanos_since_epoch", &duration_since_epoch.subsec_nanos()));
+        let duration_since_epoch = match self.duration_since(UNIX_EPOCH) {
+            Ok(duration_since_epoch) => duration_since_epoch,
+            Err(_) => return Err(S::Error::custom("SystemTime must be later than UNIX_EPOCH")),
+        };
+        let mut state = tri!(serializer.serialize_struct("SystemTime", 2));
+        tri!(state.serialize_field("secs_since_epoch", &duration_since_epoch.as_secs()));
+        tri!(state.serialize_field("nanos_since_epoch", &duration_since_epoch.subsec_nanos()));
         state.end()
     }
 }
@@ -670,6 +796,7 @@ macro_rules! serialize_display_bounded_length {
 }
 
 #[cfg(feature = "std")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "std")))]
 impl Serialize for net::IpAddr {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -694,6 +821,53 @@ impl Serialize for net::IpAddr {
 }
 
 #[cfg(feature = "std")]
+const DEC_DIGITS_LUT: &[u8] = b"\
+      0001020304050607080910111213141516171819\
+      2021222324252627282930313233343536373839\
+      4041424344454647484950515253545556575859\
+      6061626364656667686970717273747576777879\
+      8081828384858687888990919293949596979899";
+
+#[cfg(feature = "std")]
+#[inline]
+fn format_u8(mut n: u8, out: &mut [u8]) -> usize {
+    if n >= 100 {
+        let d1 = ((n % 100) << 1) as usize;
+        n /= 100;
+        out[0] = b'0' + n;
+        out[1] = DEC_DIGITS_LUT[d1];
+        out[2] = DEC_DIGITS_LUT[d1 + 1];
+        3
+    } else if n >= 10 {
+        let d1 = (n << 1) as usize;
+        out[0] = DEC_DIGITS_LUT[d1];
+        out[1] = DEC_DIGITS_LUT[d1 + 1];
+        2
+    } else {
+        out[0] = b'0' + n;
+        1
+    }
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn test_format_u8() {
+    let mut i = 0u8;
+
+    loop {
+        let mut buf = [0u8; 3];
+        let written = format_u8(i, &mut buf);
+        assert_eq!(i.to_string().as_bytes(), &buf[..written]);
+
+        match i.checked_add(1) {
+            Some(next) => i = next,
+            None => break,
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "std")))]
 impl Serialize for net::Ipv4Addr {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -702,7 +876,15 @@ impl Serialize for net::Ipv4Addr {
         if serializer.is_human_readable() {
             const MAX_LEN: usize = 15;
             debug_assert_eq!(MAX_LEN, "101.102.103.104".len());
-            serialize_display_bounded_length!(self, MAX_LEN, serializer)
+            let mut buf = [b'.'; MAX_LEN];
+            let mut written = format_u8(self.octets()[0], &mut buf);
+            for oct in &self.octets()[1..] {
+                // Skip over delimiters that we initialized buf with
+                written += format_u8(*oct, &mut buf[written + 1..]) + 1;
+            }
+            // Safety: We've only written ASCII bytes to the buffer, so it is valid UTF-8
+            let buf = unsafe { str::from_utf8_unchecked(&buf[..written]) };
+            serializer.serialize_str(buf)
         } else {
             self.octets().serialize(serializer)
         }
@@ -710,6 +892,7 @@ impl Serialize for net::Ipv4Addr {
 }
 
 #[cfg(feature = "std")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "std")))]
 impl Serialize for net::Ipv6Addr {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -726,6 +909,7 @@ impl Serialize for net::Ipv6Addr {
 }
 
 #[cfg(feature = "std")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "std")))]
 impl Serialize for net::SocketAddr {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -750,6 +934,7 @@ impl Serialize for net::SocketAddr {
 }
 
 #[cfg(feature = "std")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "std")))]
 impl Serialize for net::SocketAddrV4 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -766,6 +951,7 @@ impl Serialize for net::SocketAddrV4 {
 }
 
 #[cfg(feature = "std")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "std")))]
 impl Serialize for net::SocketAddrV6 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -787,6 +973,7 @@ impl Serialize for net::SocketAddrV6 {
 ////////////////////////////////////////////////////////////////////////////////
 
 #[cfg(feature = "std")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "std")))]
 impl Serialize for Path {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -800,6 +987,7 @@ impl Serialize for Path {
 }
 
 #[cfg(feature = "std")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "std")))]
 impl Serialize for PathBuf {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -810,6 +998,7 @@ impl Serialize for PathBuf {
 }
 
 #[cfg(all(feature = "std", any(unix, windows)))]
+#[cfg_attr(doc_cfg, doc(cfg(all(feature = "std", any(unix, windows)))))]
 impl Serialize for OsStr {
     #[cfg(unix)]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -832,6 +1021,7 @@ impl Serialize for OsStr {
 }
 
 #[cfg(all(feature = "std", any(unix, windows)))]
+#[cfg_attr(doc_cfg, doc(cfg(all(feature = "std", any(unix, windows)))))]
 impl Serialize for OsString {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -856,7 +1046,6 @@ where
     }
 }
 
-#[cfg(core_reverse)]
 impl<T> Serialize for Reverse<T>
 where
     T: Serialize,
@@ -872,30 +1061,40 @@ where
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[cfg(all(feature = "std", std_atomic))]
+#[cfg(all(feature = "std", not(no_std_atomic)))]
 macro_rules! atomic_impl {
-    ($($ty:ident)*) => {
+    ($($ty:ident $size:expr)*) => {
         $(
+            #[cfg(any(no_target_has_atomic, target_has_atomic = $size))]
+            #[cfg_attr(doc_cfg, doc(cfg(all(feature = "std", target_has_atomic = $size))))]
             impl Serialize for $ty {
                 fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where
                     S: Serializer,
                 {
-                    self.load(Ordering::SeqCst).serialize(serializer)
+                    // Matches the atomic ordering used in libcore for the Debug impl
+                    self.load(Ordering::Relaxed).serialize(serializer)
                 }
             }
         )*
     }
 }
 
-#[cfg(all(feature = "std", std_atomic))]
+#[cfg(all(feature = "std", not(no_std_atomic)))]
 atomic_impl! {
-    AtomicBool
-    AtomicI8 AtomicI16 AtomicI32 AtomicIsize
-    AtomicU8 AtomicU16 AtomicU32 AtomicUsize
+    AtomicBool "8"
+    AtomicI8 "8"
+    AtomicI16 "16"
+    AtomicI32 "32"
+    AtomicIsize "ptr"
+    AtomicU8 "8"
+    AtomicU16 "16"
+    AtomicU32 "32"
+    AtomicUsize "ptr"
 }
 
-#[cfg(all(feature = "std", std_atomic64))]
+#[cfg(all(feature = "std", not(no_std_atomic64)))]
 atomic_impl! {
-    AtomicI64 AtomicU64
+    AtomicI64 "64"
+    AtomicU64 "64"
 }

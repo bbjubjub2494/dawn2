@@ -1,6 +1,13 @@
-use serde::{Deserialize, Deserializer};
-use serde_test::{assert_de_tokens, assert_de_tokens_error, Token};
+#![allow(
+    clippy::derive_partial_eq_without_eq,
+    clippy::items_after_statements,
+    clippy::used_underscore_binding
+)]
 
+use serde::de::value::{BorrowedStrDeserializer, MapDeserializer};
+use serde::de::{Deserialize, Deserializer, IntoDeserializer};
+use serde_derive::Deserialize;
+use serde_test::{assert_de_tokens, assert_de_tokens_error, Token};
 use std::borrow::Cow;
 
 #[test]
@@ -91,6 +98,30 @@ fn test_struct() {
 }
 
 #[test]
+fn test_field_identifier() {
+    #[derive(Deserialize, Debug, PartialEq)]
+    #[serde(field_identifier)]
+    enum FieldStr<'a> {
+        #[serde(borrow)]
+        Str(&'a str),
+    }
+
+    assert_de_tokens(&FieldStr::Str("value"), &[Token::BorrowedStr("value")]);
+
+    #[derive(Deserialize, Debug, PartialEq)]
+    #[serde(field_identifier)]
+    enum FieldBytes<'a> {
+        #[serde(borrow)]
+        Bytes(&'a [u8]),
+    }
+
+    assert_de_tokens(
+        &FieldBytes::Bytes(b"value"),
+        &[Token::BorrowedBytes(b"value")],
+    );
+}
+
+#[test]
 fn test_cow() {
     #[derive(Deserialize)]
     struct Cows<'a, 'b> {
@@ -100,20 +131,22 @@ fn test_cow() {
         borrowed: Cow<'b, str>,
     }
 
-    let tokens = &[
-        Token::Struct {
-            name: "Cows",
-            len: 2,
-        },
-        Token::Str("copied"),
-        Token::BorrowedStr("copied"),
-        Token::Str("borrowed"),
-        Token::BorrowedStr("borrowed"),
-        Token::StructEnd,
-    ];
+    struct BorrowedStr(&'static str);
 
-    let mut de = serde_test::Deserializer::new(tokens);
-    let cows = Cows::deserialize(&mut de).unwrap();
+    impl<'de> IntoDeserializer<'de> for BorrowedStr {
+        type Deserializer = BorrowedStrDeserializer<'de, serde::de::value::Error>;
+
+        fn into_deserializer(self) -> Self::Deserializer {
+            BorrowedStrDeserializer::new(self.0)
+        }
+    }
+
+    let de = MapDeserializer::new(IntoIterator::into_iter([
+        ("copied", BorrowedStr("copied")),
+        ("borrowed", BorrowedStr("borrowed")),
+    ]));
+
+    let cows = Cows::deserialize(de).unwrap();
 
     match cows.copied {
         Cow::Owned(ref s) if s == "copied" => {}

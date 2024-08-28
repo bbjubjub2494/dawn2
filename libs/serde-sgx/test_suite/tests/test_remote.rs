@@ -1,6 +1,6 @@
 #![allow(clippy::redundant_field_names)]
 
-use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 
 mod remote {
     pub struct Unit;
@@ -74,6 +74,21 @@ mod remote {
             &self.b
         }
     }
+
+    pub struct StructGeneric<T> {
+        pub value: T,
+    }
+
+    impl<T> StructGeneric<T> {
+        #[allow(dead_code)]
+        pub fn get_value(&self) -> &T {
+            &self.value
+        }
+    }
+
+    pub enum EnumGeneric<T> {
+        Variant(T),
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -104,6 +119,15 @@ struct Test {
 
     #[serde(with = "StructPubDef")]
     struct_pub: remote::StructPub,
+
+    #[serde(with = "StructConcrete")]
+    struct_concrete: remote::StructGeneric<u8>,
+
+    #[serde(with = "EnumConcrete")]
+    enum_concrete: remote::EnumGeneric<u8>,
+
+    #[serde(with = "ErrorKindDef")]
+    io_error_kind: ErrorKind,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -157,6 +181,42 @@ struct StructPubDef {
     b: remote::Unit,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "remote::StructGeneric")]
+struct StructGenericWithGetterDef<T> {
+    #[serde(getter = "remote::StructGeneric::get_value")]
+    value: T,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "remote::StructGeneric<u8>")]
+struct StructConcrete {
+    value: u8,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "remote::EnumGeneric<u8>")]
+enum EnumConcrete {
+    Variant(u8),
+}
+
+#[derive(Debug)]
+enum ErrorKind {
+    NotFound,
+    PermissionDenied,
+    #[allow(dead_code)]
+    ConnectionRefused,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "ErrorKind")]
+#[non_exhaustive]
+enum ErrorKindDef {
+    NotFound,
+    PermissionDenied,
+    // ...
+}
+
 impl From<PrimitivePrivDef> for remote::PrimitivePriv {
     fn from(def: PrimitivePrivDef) -> Self {
         remote::PrimitivePriv::new(def.0)
@@ -178,5 +238,11 @@ impl From<TuplePrivDef> for remote::TuplePriv {
 impl From<StructPrivDef> for remote::StructPriv {
     fn from(def: StructPrivDef) -> Self {
         remote::StructPriv::new(def.a, def.b)
+    }
+}
+
+impl<T> From<StructGenericWithGetterDef<T>> for remote::StructGeneric<T> {
+    fn from(def: StructGenericWithGetterDef<T>) -> Self {
+        remote::StructGeneric { value: def.value }
     }
 }
