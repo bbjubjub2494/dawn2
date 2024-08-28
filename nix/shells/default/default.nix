@@ -42,9 +42,4 @@ mkShell {
     SGX_MODE = "SW"; # use HW for real sgx chips
     SGX_SDK = sgx-sdk;
   };
-
-  shellHook = ''
-    rustup override set stable
-    rustup override set --path sgx/ nightly-2022-10-22
-  '';
 }
