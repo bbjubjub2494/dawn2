@@ -1082,6 +1082,15 @@ fn test_internally_tagged_struct_variant_containing_unit_variant() {
     }
 
     assert_de_tokens(
+        &Level::Info,
+        &[
+            Token::Enum { name: "Level" },
+            Token::BorrowedStr("Info"),
+            Token::Unit,
+        ],
+    );
+
+    assert_de_tokens(
         &Message::Log { level: Level::Info },
         &[
             Token::Struct {
@@ -1091,7 +1100,9 @@ fn test_internally_tagged_struct_variant_containing_unit_variant() {
             Token::Str("action"),
             Token::Str("Log"),
             Token::Str("level"),
+            Token::Enum { name: "Level" },
             Token::BorrowedStr("Info"),
+            Token::Unit,
             Token::StructEnd,
         ],
     );
@@ -1103,7 +1114,9 @@ fn test_internally_tagged_struct_variant_containing_unit_variant() {
             Token::Str("action"),
             Token::Str("Log"),
             Token::Str("level"),
+            Token::Enum { name: "Level" },
             Token::BorrowedStr("Info"),
+            Token::Unit,
             Token::MapEnd,
         ],
     );
@@ -1113,7 +1126,9 @@ fn test_internally_tagged_struct_variant_containing_unit_variant() {
         &[
             Token::Seq { len: Some(2) },
             Token::Str("Log"),
+            Token::Enum { name: "Level" },
             Token::BorrowedStr("Info"),
+            Token::Unit,
             Token::SeqEnd,
         ],
     );
@@ -2219,24 +2234,28 @@ fn test_internally_tagged_newtype_variant_containing_unit_struct() {
 fn test_packed_struct_can_derive_serialize() {
     #[derive(Copy, Clone, Serialize)]
     #[repr(packed, C)]
+    #[allow(dead_code)]
     struct PackedC {
         t: f32,
     }
 
     #[derive(Copy, Clone, Serialize)]
     #[repr(C, packed)]
+    #[allow(dead_code)]
     struct CPacked {
         t: f32,
     }
 
     #[derive(Copy, Clone, Serialize)]
     #[repr(C, packed(2))]
+    #[allow(dead_code)]
     struct CPacked2 {
         t: f32,
     }
 
     #[derive(Copy, Clone, Serialize)]
     #[repr(packed(2), C)]
+    #[allow(dead_code)]
     struct Packed2C {
         t: f32,
     }
