@@ -4,7 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-alloy = { version = "0.2.1", features = ["full", "signer-mnemonic"] }
+alloy = { path = "../libs/alloy/crates/alloy", features = ["full", "signer-mnemonic"] }
 eyre = "0.6.12"
 futures-util = "0.3.30"
 tokio = { version = "1.39.2", features = ["rt-multi-thread"] }
+
+[patch.crates-io]
+serde = { path = "../libs/serde-sgx/serde" }
+serde_json = { path = "../libs/json-sgx" }
