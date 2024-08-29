@@ -1,6 +1,6 @@
-use alloy::network::EthereumWallet;
+use alloy::network::{Ethereum, EthereumWallet};
 use alloy::primitives::*;
-use alloy::providers::{Network, Provider, ProviderBuilder, WsConnect};
+use alloy::providers::{Provider, ProviderBuilder, WsConnect};
 use alloy::signers::local::{coins_bip39::English, MnemonicBuilder};
 use alloy::sol;
 use alloy::transports::Transport;
@@ -24,58 +24,21 @@ sol!(
     "../contracts/out/Collection.sol/Collection.json"
 );
 
-fn derive_key(index: u32) -> Result<(EthereumWallet, Address)> {
-    let phrase = "test test test test test test test test test test test junk"; // reth default mnemonic
-    let signer = MnemonicBuilder::<English>::default()
-        .phrase(phrase)
-        .index(index)?
-        .build()?;
-    let address = signer.address();
-    Ok((EthereumWallet::from(signer), address))
-}
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    WETH,
+    "../contracts/out/WETH.sol/WETH.json"
+);
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    load_master_key();
-    let (deployer_wallet, deployer_address) = derive_key(0)?;
-    let provider = &ProviderBuilder::new()
-        .with_recommended_fillers()
-        .wallet(deployer_wallet)
-        .on_ws(WsConnect::new("ws://localhost:8546"))
-        .await?;
-
-    // Deploy the contract.
-    let block_delay = 2;
-    let auctions = SimpleAuctions::deploy(provider, block_delay).await?;
-    let collection = Collection::deploy(provider).await?;
+    let scenario = Scenario::new().await?;
 
     let bidders = (1..20)
-        .map(|i| tokio::spawn(bidder_script(*auctions.address(), *collection.address(), i)))
+        .map(|i| tokio::spawn(async move { scenario.bidder_script(i).await }))
         .collect::<Vec<_>>();
-
-    collection
-        .approve(*auctions.address(), U256::from(1))
-        .send()
-        .await?
-        .watch()
-        .await?;
-    let r = auctions
-        .startAuction(*collection.address(), U256::from(1), deployer_address)
-        .value(U256::from(1))
-        .send()
-        .await?
-        .get_receipt()
-        .await?;
-    dbg!(r);
-
-    wait_for_block(provider, 30).await?; // FIXME: decode block number from receipt
-    let auction_id = U256::from(0); // FIXME
-    auctions
-        .settle(auction_id)
-        .send()
-        .await?
-        .get_receipt()
-        .await?;
+    scenario.operator_script().await?;
 
     for bidder in bidders {
         bidder.await??;
@@ -84,54 +47,160 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn bidder_script(
+#[derive(Debug, Clone, Copy)]
+struct Scenario {
     auctions_address: Address,
     collection_address: Address,
-    index: u32,
-) -> Result<()> {
-    let (bidder_wallet, bidder_address) = derive_key(index)?;
-    let provider = &ProviderBuilder::new()
-        .with_recommended_fillers()
-        .wallet(bidder_wallet)
-        .on_ws(WsConnect::new("ws://localhost:8546"))
-        .await?;
-
-    let auctions = SimpleAuctions::new(auctions_address, provider);
-    let collection = Collection::new(collection_address, provider);
-
-    let (auction_id, opening) = {
-        let auction_filter = auctions.AuctionStarted_filter().watch().await?;
-        let mut stream = auction_filter.into_stream();
-        let Some(event) = stream.next().await else {
-            return Err(eyre::eyre!("No auction started event"));
-        };
-        let info = event?.0;
-        (info.auctionId, info.opening)
-    };
-
-    wait_for_block(provider, opening).await?;
-
-    let r = auctions
-        .bid(auction_id)
-        .value(U256::from(2))
-        .send()
-        .await?
-        .get_receipt()
-        .await?;
-    dbg!(r);
-
-    Ok(())
+    weth_address: Address,
 }
 
-async fn wait_for_block<T: Transport + Clone, N: Network>(
-    provider: &impl Provider<T, N>,
-    opening: u64,
+impl Scenario {
+    async fn new() -> Result<Self> {
+        load_master_key();
+        let (deployer_wallet, deployer_address) = derive_key(0)?;
+        let provider = &ProviderBuilder::new()
+            .with_recommended_fillers()
+            .wallet(deployer_wallet)
+            .on_ws(WsConnect::new("ws://localhost:8546"))
+            .await?;
+
+        // Deploy the contract.
+        let block_delay = 2;
+        let auctions = SimpleAuctions::deploy(provider, block_delay).await?;
+        let collection = Collection::deploy(provider).await?;
+        let weth = WETH::deploy(provider).await?;
+
+        Ok(Scenario {
+            auctions_address: *auctions.address(),
+            collection_address: *collection.address(),
+            weth_address: *weth.address(),
+        })
+    }
+
+    async fn operator_script(&self) -> Result<()> {
+        let amount = U256::from(1);
+        let (operator_wallet, deployer_address) = derive_key(0)?;
+        let provider = &ProviderBuilder::new()
+            .with_recommended_fillers()
+            .wallet(operator_wallet)
+            .on_ws(WsConnect::new("ws://localhost:8546"))
+            .await?;
+        let (auctions, collection, weth) = self.bindings(provider);
+
+        weth.deposit().value(amount).send().await?.watch().await?;
+        weth.approve(*auctions.address(), amount)
+            .send()
+            .await?
+            .watch()
+            .await?;
+
+        let token_id = U256::from(1);
+        collection
+            .approve(*auctions.address(), token_id)
+            .send()
+            .await?
+            .watch()
+            .await?;
+
+        let r = auctions
+            .startAuction(
+                *collection.address(),
+                token_id,
+                *weth.address(),
+                deployer_address,
+            )
+            .send()
+            .await?
+            .get_receipt()
+            .await?;
+        dbg!(r);
+
+        wait_for_block(provider, 30).await?; // FIXME: decode block number from receipt
+        let auction_id = U256::from(0); // FIXME
+        auctions
+            .settle(auction_id)
+            .send()
+            .await?
+            .get_receipt()
+            .await?;
+
+        Ok(())
+    }
+
+    async fn bidder_script(&self, index: u32) -> Result<()> {
+        let (bidder_wallet, bidder_address) = derive_key(index)?;
+        let provider = &ProviderBuilder::new()
+            .with_recommended_fillers()
+            .wallet(bidder_wallet)
+            .on_ws(WsConnect::new("ws://localhost:8546"))
+            .await?;
+        let (auctions, collection, weth) = self.bindings(provider);
+
+        let amount = U256::from(2);
+        weth.deposit().value(amount).send().await?.watch().await?;
+        weth.approve(*auctions.address(), amount)
+            .send()
+            .await?
+            .watch()
+            .await?;
+
+        let (auction_id, opening) = {
+            let auction_filter = auctions.AuctionStarted_filter().watch().await?;
+            let mut stream = auction_filter.into_stream();
+            let Some(event) = stream.next().await else {
+                return Err(eyre::eyre!("No auction started event"));
+            };
+            let info = event?.0;
+            (info.auctionId, info.opening)
+        };
+
+        wait_for_block(provider, opening).await?;
+        let r = auctions
+            .bid(auction_id, amount)
+            .send()
+            .await?
+            .get_receipt()
+            .await?;
+        dbg!(r);
+
+        Ok(())
+    }
+
+    fn bindings<'a, T: Transport + Clone, P: Provider<T, Ethereum>>(
+        &self,
+        provider: &'a P,
+    ) -> (
+        SimpleAuctions::SimpleAuctionsInstance<T, &'a P>,
+        Collection::CollectionInstance<T, &'a P>,
+        WETH::WETHInstance<T, &'a P>,
+    ) {
+        (
+            SimpleAuctions::new(self.auctions_address, provider),
+            Collection::new(self.collection_address, provider),
+            WETH::new(self.weth_address, provider),
+        )
+    }
+}
+
+fn derive_key(index: u32) -> Result<(EthereumWallet, Address)> {
+    let mnemonic_phrase = "test test test test test test test test test test test junk".to_string();
+    let signer = MnemonicBuilder::<English>::default()
+        .phrase(mnemonic_phrase)
+        .index(index)?
+        .build()?;
+    let address = signer.address();
+    Ok((EthereumWallet::from(signer), address))
+}
+
+async fn wait_for_block<T: Transport + Clone>(
+    provider: &impl Provider<T, Ethereum>,
+    block_number: u64,
 ) -> Result<()> {
     let subscription = provider.subscribe_blocks().await?;
     let mut stream = subscription.into_stream();
 
     while let Some(block) = stream.next().await {
-        if block.header.number > Some(opening) {
+        if block.header.number > Some(block_number) {
             break;
         }
     }
@@ -139,5 +208,6 @@ async fn wait_for_block<T: Transport + Clone, N: Network>(
 }
 
 fn load_master_key() -> (MasterPublicKey, SealedMasterPrivateKey) {
-    serde_json::from_str(&std::env::var("DAWN_MASTER_KEY").expect("DAWN_MASTER_KEY not set")).unwrap()
+    serde_json::from_str(&std::env::var("DAWN_MASTER_KEY").expect("DAWN_MASTER_KEY not set"))
+        .unwrap()
 }
