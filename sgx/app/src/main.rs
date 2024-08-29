@@ -93,11 +93,20 @@ fn selfcheck() -> io::Result<()> {
     Ok(())
 }
 
+fn generate() -> io::Result<()> {
+    let request = Request::Generate();
+    let Response::Generate(mpk, emsk) = enclave_handle(request)? else { panic!("Expected Generate response") };
+
+    serde_json::to_writer(std::io::stdout(), &(mpk, emsk))?;
+    Ok(())
+}
+
 fn main() -> io::Result<()> {
     let mut args = std::env::args();
     args.next(); // skip program name
     match args.next().as_deref() {
         Some("selfcheck") => selfcheck(),
+        Some("generate") => generate(),
         Some(cmd) => Err(io::Error::new(
             io::ErrorKind::Other,
             format!("Unknown command: {}", cmd),

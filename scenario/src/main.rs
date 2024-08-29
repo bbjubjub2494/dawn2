@@ -8,6 +8,8 @@ use eyre::Result;
 
 use futures_util::StreamExt;
 
+use dawn_enclave_protocol::{MasterPublicKey, SealedMasterPrivateKey};
+
 sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
@@ -34,6 +36,7 @@ fn derive_key(index: u32) -> Result<(EthereumWallet, Address)> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    load_master_key();
     let (deployer_wallet, deployer_address) = derive_key(0)?;
     let provider = &ProviderBuilder::new()
         .with_recommended_fillers()
@@ -133,4 +136,8 @@ async fn wait_for_block<T: Transport + Clone, N: Network>(
         }
     }
     Ok(())
+}
+
+fn load_master_key() -> (MasterPublicKey, SealedMasterPrivateKey) {
+    serde_json::from_str(&std::env::var("DAWN_MASTER_KEY").expect("DAWN_MASTER_KEY not set")).unwrap()
 }

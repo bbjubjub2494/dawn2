@@ -4,6 +4,8 @@ run: build-reth build-scenario
   . libs/lib.sh
   setup_tmpdir
 
+  export DAWN_MASTER_KEY="$(run_sgx generate)"
+
   tmux set -g remain-on-exit failed
   
   producer_datadir=$tempdir/producer

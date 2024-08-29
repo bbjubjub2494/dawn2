@@ -10,3 +10,4 @@ dawn_enclave_protocol = {path = "../../libs/dawn_enclave_protocol"}
 dawn_crypto = {path = "../../libs/dawn_crypto"}
 serde = { path = "../../libs/serde-sgx/serde", default-features = false, features = ["std"] }
 serde_cbor = { path = "../../libs/cbor-sgx", default-features = false, features = ["std"] }
+serde_json = { path = "../../libs/json-sgx", default-features = false, features = ["std"] }

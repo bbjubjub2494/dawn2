@@ -1109,6 +1109,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "dawn_enclave_protocol"
+version = "0.1.0"
+dependencies = [
+ "dawn_crypto",
+ "serde",
+]
+
+[[package]]
 name = "der"
 version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2563,8 +2571,10 @@ name = "scenario"
 version = "0.1.0"
 dependencies = [
  "alloy",
+ "dawn_enclave_protocol",
  "eyre",
  "futures-util",
+ "serde_json",
  "tokio",
 ]
 
