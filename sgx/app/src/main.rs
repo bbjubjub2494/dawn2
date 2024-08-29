@@ -26,6 +26,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+extern crate dawn_crypto;
+extern crate dawn_enclave_protocol;
 extern crate dirs;
 extern crate sgx_types;
 extern crate sgx_urts;
@@ -33,8 +35,12 @@ use sgx_types::*;
 use sgx_urts::SgxEnclave;
 
 use std::fs;
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 use std::path;
+use std::process::{Command, Stdio};
+
+use dawn_crypto::verify;
+use dawn_enclave_protocol::{Request, Response};
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
@@ -116,7 +122,46 @@ fn init_enclave() -> SgxResult<SgxEnclave> {
     Ok(enclave)
 }
 
-fn main() {
+fn enclave_handle(request: Request) -> io::Result<Response> {
+    let mut cmd = Command::new("./app")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()?;
+    let stdin = cmd.stdin.take().unwrap();
+    let stdout = cmd.stdout.take().unwrap();
+    serde_cbor::to_writer(stdin, &request).unwrap();
+    let response: Response = serde_cbor::from_reader(stdout).unwrap();
+    if !cmd.wait()?.success() {
+        panic!("Enclave failed to run");
+    }
+    Ok(response)
+}
+
+fn selfcheck() -> io::Result<()> {
+    let request = Request::Generate();
+    let Response::Generate(mpk, emsk) = enclave_handle(request)? else { panic!("Expected Generate response") };
+
+    let request = Request::Reveal(b"label".to_vec(), emsk);
+    let Response::Reveal(dk) = enclave_handle(request)? else { panic!("Expected Reveal response") };
+
+    assert!(verify(b"label", &mpk, &dk));
+    Ok(())
+}
+
+fn main() -> io::Result<()> {
+    let mut args = std::env::args();
+    args.next(); // skip program name
+    match args.next().as_deref() {
+        Some("selfcheck") => selfcheck(),
+        Some(cmd) => Err(io::Error::new(
+            io::ErrorKind::Other,
+            format!("Unknown command: {}", cmd),
+        )),
+        None => run_enclave(),
+    }
+}
+
+fn run_enclave() -> io::Result<()> {
     let enclave = match init_enclave() {
         Ok(r) => {
             eprintln!("[+] Init Enclave Successful {}!", r.geteid());
@@ -135,10 +180,11 @@ fn main() {
     match result {
         sgx_status_t::SGX_SUCCESS => {}
         _ => {
-            eprintln!("[-] ECALL Enclave Failed {}!", result.as_str());
-            return;
+            return Err(io::Error::new(io::ErrorKind::Other, "ECALL Enclave Failed"));
         }
     }
 
     enclave.destroy();
+
+    Ok(())
 }

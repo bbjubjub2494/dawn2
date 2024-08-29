@@ -29,4 +29,9 @@ run_scenario() {
 	command "$SCENARIO" "${scenario_args[@]}" "$@"
 }
 
+SGX_DIR="$PWD/sgx"
+run_sgx() {
+	(cd "$SGX_DIR/bin" && command ./app "$@")
+}
+
 export ETH_RPC_URL=http://localhost:8545

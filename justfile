@@ -35,5 +35,7 @@ build-contracts:
 build-sgx:
   cd sgx && make
 
-run-sgx: build-sgx
-  cd sgx/bin && ./app
+run-sgx *args: build-sgx
+  #!/usr/bin/env bash
+  . libs/lib.sh
+  run_sgx {{args}}
