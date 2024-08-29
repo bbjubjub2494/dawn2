@@ -6,7 +6,6 @@ build = "build.rs"
 [dependencies]
 sgx_types = { rev = "v1.1.6", git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_urts = {rev = "v1.1.6", git = "https://github.com/apache/teaclave-sgx-sdk.git" }
-dirs = "1.0.2"
 dawn_enclave_protocol = {path = "../../libs/dawn_enclave_protocol"}
 dawn_crypto = {path = "../../libs/dawn_crypto"}
 serde = { path = "../../libs/serde-sgx/serde", default-features = false, features = ["std"] }
