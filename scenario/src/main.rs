@@ -3,6 +3,7 @@ use alloy::primitives::*;
 use alloy::providers::{Provider, ProviderBuilder, WsConnect};
 use alloy::signers::local::{coins_bip39::English, MnemonicBuilder};
 use alloy::sol;
+use alloy::sol_types::SolEvent;
 use alloy::transports::Transport;
 use eyre::Result;
 
@@ -113,12 +114,30 @@ impl Scenario {
             .await?
             .get_receipt()
             .await?;
-        dbg!(r);
+        let Some(ev) = r.inner.logs().iter().find_map({
+            |l| {
+                if l.topic0() == Some(&SimpleAuctions::AuctionStarted::SIGNATURE_HASH) {
+                    Some(SimpleAuctions::AuctionStarted::decode_raw_log(
+                        l.topics(),
+                        &l.data().data,
+                        false,
+                    ))
+                } else {
+                    None
+                }
+            }
+        }) else {
+            return Err(eyre::eyre!("startAuction() did not emit event"));
+        };
 
-        wait_for_block(provider, 30).await?; // FIXME: decode block number from receipt
-        let auction_id = U256::from(0); // FIXME
+        let SimpleAuctions::AuctionStarted {
+            auctionId,
+            revealDeadline,
+            ..
+        } = ev?;
+        wait_for_block(provider, revealDeadline).await?;
         auctions
-            .settle(auction_id)
+            .settle(auctionId)
             .send()
             .await?
             .get_receipt()
