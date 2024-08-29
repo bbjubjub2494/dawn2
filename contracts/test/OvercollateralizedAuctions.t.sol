@@ -5,28 +5,38 @@ import {Test, console} from "@forge-std-1.9.1/src/Test.sol";
 import {OvercollateralizedAuctions} from "src/OvercollateralizedAuctions.sol";
 import {Collection} from "src/Collection.sol";
 import {IERC721} from "@forge-std-1.9.1/src/interfaces/IERC721.sol";
+import {IERC20} from "@forge-std-1.9.1/src/interfaces/IERC20.sol";
 
 contract OvercollateralizedAuctionsTest is Test {
     OvercollateralizedAuctions auctions;
     IERC721 collection;
+    IERC20 bidToken;
 
     address constant operator = address(0x1337);
-    address constant bidder1 = address(0x1111111111111111111111111111111111111111);
-    address constant bidder2 = address(0x2222222222222222222222222222222222222222);
-    address constant proceedsReceiver = address(0x3333333333333333333333333333333333333333);
-
-    uint256 constant MAX_BID = 10 ether;
+    address constant bidder1 = 0x1111111111111111111111111111111111111111;
+    address constant bidder2 = 0x2222222222222222222222222222222222222222;
+    address constant proceedsReceiver = 0x3333333333333333333333333333333333333333;
 
     function setUp() public {
         auctions = new OvercollateralizedAuctions(2);
         vm.prank(operator);
         collection = IERC721(address(new Collection()));
+        bidToken = IERC20(address(deployMockERC20("I owe you", "IOU", 18)));
+
+        deal(address(bidToken), bidder1, 10 ether);
+        vm.prank(bidder1);
+        bidToken.approve(address(auctions), 10 ether);
+        deal(address(bidToken), bidder2, 10 ether);
+        vm.prank(bidder2);
+        bidToken.approve(address(auctions), 10 ether);
     }
 
     function startAuction(uint256 tokenId) internal returns (uint256 auctionId) {
-        startHoax(operator);
+        vm.startPrank(operator);
         collection.approve(address(auctions), tokenId);
-        auctionId = auctions.startAuction{value: 1 wei}(collection, tokenId, proceedsReceiver);
+        deal(address(bidToken), operator, 1 wei);
+        bidToken.approve(address(auctions), 1 wei);
+        auctionId = auctions.startAuction(collection, tokenId, bidToken, proceedsReceiver);
         vm.stopPrank();
     }
 
@@ -36,8 +46,8 @@ contract OvercollateralizedAuctionsTest is Test {
     }
 
     function doCommit(uint256 auctionId, address bidder, bytes32 commit) internal {
-        hoax(bidder, MAX_BID);
-        auctions.commitBid{value: MAX_BID}(auctionId, commit);
+        vm.prank(bidder);
+        auctions.commitBid(auctionId, commit);
     }
 
     function doReveal(uint256 auctionId, address bidder, bytes32 blinding, uint256 amount) internal {
@@ -52,8 +62,8 @@ contract OvercollateralizedAuctionsTest is Test {
         (, bytes32 commit) = prepareCommit(bidder1, amount);
         vm.roll(block.number + 2);
         doCommit(auctionId, bidder1, commit);
-        assertEq(address(auctions).balance, 10 ether + 1 wei);
-        assertEq(bidder1.balance, 0);
+        assertEq(bidToken.balanceOf(address(auctions)), 10 ether + 1 wei);
+        assertEq(bidToken.balanceOf(bidder1), 0);
     }
 
     function testEarlyCommitBid() public {
@@ -84,8 +94,8 @@ contract OvercollateralizedAuctionsTest is Test {
         doCommit(auctionId, bidder1, commit);
         vm.roll(block.number + 2);
         doReveal(auctionId, bidder1, blinding, amount);
-        assertEq(address(auctions).balance, amount);
-        assertEq(bidder1.balance, 10 ether - amount);
+        assertEq(bidToken.balanceOf(address(auctions)), amount);
+        assertEq(bidToken.balanceOf(bidder1), 10 ether - amount);
     }
 
     function testEarlyRevealBid() public {
@@ -148,8 +158,8 @@ contract OvercollateralizedAuctionsTest is Test {
         doReveal(auctionId, bidder1, blinding, amount);
         vm.roll(block.number + 2);
         auctions.settle(auctionId);
-        assertEq(address(auctions).balance, 0);
-        assertEq(bidder1.balance, 10 ether - amount);
+        assertEq(bidToken.balanceOf(address(auctions)), 0);
+        assertEq(bidToken.balanceOf(bidder1), 10 ether - amount);
         assertEq(collection.ownerOf(tokenId), bidder1);
     }
 
@@ -173,9 +183,9 @@ contract OvercollateralizedAuctionsTest is Test {
         }
         vm.roll(block.number + 2);
         auctions.settle(auctionId);
-        assertEq(address(auctions).balance, 0);
-        assertEq(bidder1.balance, 10 ether);
-        assertEq(bidder2.balance, 10 ether - amount2);
+        assertEq(bidToken.balanceOf(address(auctions)), 0);
+        assertEq(bidToken.balanceOf(bidder1), 10 ether);
+        assertEq(bidToken.balanceOf(bidder2), 10 ether - amount2);
         assertEq(collection.ownerOf(tokenId), bidder2);
     }
 }

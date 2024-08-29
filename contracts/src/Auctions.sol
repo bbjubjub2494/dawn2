@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import {IERC721} from "@forge-std-1.9.1/src/interfaces/IERC721.sol";
+import {IERC20} from "@forge-std-1.9.1/src/interfaces/IERC20.sol";
 
 // common code for Simple- and OvercollateralizedAuctions
 interface Auctions {
@@ -21,9 +22,8 @@ interface Auctions {
     event Commit(uint256 auctionId);
     event Reveal(uint256 auctionId);
 
-    function startAuction(IERC721 collection, uint256 tokenId, address proceedsReceiver)
+    function startAuction(IERC721 collection, uint256 tokenId, IERC20 bidToken, address proceedsReceiver)
         external
-        payable
         returns (uint256 auctionId);
 
     function settle(uint256 auctionId) external;
