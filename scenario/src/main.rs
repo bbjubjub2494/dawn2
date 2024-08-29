@@ -1,10 +1,12 @@
-use alloy::network::{Ethereum, EthereumWallet};
+use alloy::network::{Ethereum, EthereumWallet, NetworkWallet};
 use alloy::primitives::*;
 use alloy::providers::{Provider, ProviderBuilder, WsConnect};
 use alloy::signers::local::{coins_bip39::English, MnemonicBuilder};
 use alloy::sol;
 use alloy::sol_types::SolEvent;
 use alloy::transports::Transport;
+use alloy::consensus::{dawn, TypedTransaction};
+use alloy::rpc::types::TransactionRequest;
 use eyre::Result;
 
 use futures_util::StreamExt;
@@ -53,11 +55,12 @@ struct Scenario {
     auctions_address: Address,
     collection_address: Address,
     weth_address: Address,
+    mpk: MasterPublicKey,
 }
 
 impl Scenario {
     async fn new() -> Result<Self> {
-        load_master_key();
+        let (mpk, _) = load_master_key();
         let (deployer_wallet, deployer_address) = derive_key(0)?;
         let provider = &ProviderBuilder::new()
             .with_recommended_fillers()
@@ -75,6 +78,7 @@ impl Scenario {
             auctions_address: *auctions.address(),
             collection_address: *collection.address(),
             weth_address: *weth.address(),
+            mpk,
         })
     }
 
@@ -150,7 +154,7 @@ impl Scenario {
         let (bidder_wallet, bidder_address) = derive_key(index)?;
         let provider = &ProviderBuilder::new()
             .with_recommended_fillers()
-            .wallet(bidder_wallet)
+            .wallet(bidder_wallet.clone())
             .on_ws(WsConnect::new("ws://localhost:8546"))
             .await?;
         let (auctions, collection, weth) = self.bindings(provider);
@@ -174,12 +178,18 @@ impl Scenario {
         };
 
         wait_for_block(provider, opening).await?;
-        let r = auctions
-            .bid(auction_id, amount)
-            .send()
-            .await?
-            .get_receipt()
-            .await?;
+        let tx = TransactionRequest{
+            chain_id: Some(1337),
+            from: Some(bidder_address),
+            nonce: Some(2),
+            gas_price: Some(1_000_000_000),
+            gas: Some(1_000_000),
+            ..auctions.bid(auction_id, amount).into_transaction_request()}.build_typed_tx().unwrap();
+        
+        let tx = dawn::encrypt(&self.mpk, tx.legacy().unwrap(), &bidder_address);
+        let tx = TypedTransaction::DawnEncrypted(tx);
+        let tx = <EthereumWallet as NetworkWallet<Ethereum>>::sign_transaction(&bidder_wallet, tx).await?;
+        let r = provider.send_tx_envelope(tx).await?.get_receipt().await?;
         dbg!(r);
 
         Ok(())

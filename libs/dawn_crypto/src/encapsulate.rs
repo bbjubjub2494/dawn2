@@ -6,7 +6,7 @@ use ic_bls12_381::{G1Affine, G2Affine, G2Prepared, Gt, Scalar};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct MasterPublicKey([u8; 96]);
 
 impl MasterPublicKey {
