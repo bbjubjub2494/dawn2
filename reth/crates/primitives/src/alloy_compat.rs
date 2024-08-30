@@ -209,6 +209,9 @@ impl TryFrom<alloy_rpc_types::Transaction> for Transaction {
                     input: tx.input,
                     }))*/
             }
+            Some(TxType::DawnEncrypted | TxType::DawnDecrypted) => {
+                todo!()
+            }
             #[cfg(feature = "optimism")]
             Some(TxType::Deposit) => {
                 let fields = tx

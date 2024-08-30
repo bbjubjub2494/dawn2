@@ -38,6 +38,7 @@ pub enum ReceiptEnvelope<T = Log> {
     #[cfg_attr(feature = "serde", serde(rename = "0x3", alias = "0x03"))]
     Eip4844(ReceiptWithBloom<T>),
     // no Encrypted variant because encrypted transactions cannot be executed
+    #[cfg_attr(feature = "serde", serde(rename = "0x6", alias = "0x06"))]
     DawnDecrypted(ReceiptWithBloom<T>),
 }
 

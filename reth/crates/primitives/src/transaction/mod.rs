@@ -202,8 +202,8 @@ impl Transaction {
             Self::Eip2930(TxEip2930 { to, .. }) |
             Self::Eip1559(TxEip1559 { to, .. }) |
             Self::Eip7702(TxEip7702 { to, .. }) => *to,
-            Self::DawnEncrypted(_) => TxKind::Create, // FIXME: not really true
-            Self::DawnDecrypted(_) => TxKind::Create, // FIXME: not really true
+            Self::DawnEncrypted(_) => TxKind::Call(Address::ZERO), // FIXME: not really true
+            Self::DawnDecrypted(TxDawnDecrypted{ to, .. }) => *to,
             Self::Eip4844(TxEip4844 { to, .. }) => TxKind::Call(*to),
             #[cfg(feature = "optimism")]
             Self::Deposit(TxDeposit { to, .. }) => *to,
@@ -658,6 +658,18 @@ impl Transaction {
         matches!(self, Self::Eip7702(_))
     }
 
+    /// Returns true if the transaction is an encrypted transaction.
+    #[inline]
+    pub const fn is_encrypted(&self) -> bool {
+        matches!(self, Self::DawnEncrypted(_))
+    }
+
+    /// Returns true if the transaction is a decrypted transaction.
+    #[inline]
+    pub const fn is_decrypted(&self) -> bool {
+        matches!(self, Self::DawnDecrypted(_))
+    }
+
     /// Returns the [`TxLegacy`] variant if the transaction is a legacy transaction.
     pub const fn as_legacy(&self) -> Option<&TxLegacy> {
         match self {
@@ -805,6 +817,14 @@ impl reth_codecs::Compact for Transaction {
                     4 => {
                         let (tx, buf) = TxEip7702::from_compact(buf, buf.len());
                         (Self::Eip7702(tx), buf)
+                    }
+                    5 => {
+                        let (tx, buf) = TxDawnEncrypted::from_compact(buf, buf.len());
+                        (Self::DawnEncrypted(tx), buf)
+                    }
+                    6 => {
+                        let (tx, buf) = TxDawnDecrypted::from_compact(buf, buf.len());
+                        (Self::DawnDecrypted(tx), buf)
                     }
                     #[cfg(feature = "optimism")]
                     126 => {
@@ -987,7 +1007,7 @@ impl reth_codecs::Compact for TransactionSignedNoHash {
         buf.put_u8(0);
 
         let sig_bit = self.signature.to_compact(buf) as u8;
-        let zstd_bit = self.transaction.input().len() >= 32;
+        let zstd_bit = !self.transaction.is_encrypted() && self.transaction.input().len() >= 32;
 
         let tx_bits = if zstd_bit {
             crate::compression::TRANSACTION_COMPRESSOR.with(|compressor| {

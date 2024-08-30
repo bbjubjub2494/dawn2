@@ -199,6 +199,8 @@ impl reth_codecs::Compact for TxType {
                     match extended_identifier {
                         EIP4844_TX_TYPE_ID => Self::Eip4844,
                         EIP7702_TX_TYPE_ID => Self::Eip7702,
+                        DAWN_ENCRYPTED_TX_TYPE_ID => Self::DawnEncrypted,
+                        DAWN_DECRYPTED_TX_TYPE_ID => Self::DawnDecrypted,
                         #[cfg(feature = "optimism")]
                         DEPOSIT_TX_TYPE_ID => Self::Deposit,
                         _ => panic!("Unsupported TxType identifier: {extended_identifier}"),

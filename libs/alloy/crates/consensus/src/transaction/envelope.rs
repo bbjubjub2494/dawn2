@@ -112,7 +112,9 @@ pub enum TxEnvelope {
     /// send transactions to the network.
     #[cfg_attr(feature = "serde", serde(rename = "0x3", alias = "0x03"))]
     Eip4844(Signed<TxEip4844Variant>),
+    #[cfg_attr(feature = "serde", serde(rename = "0x5", alias = "0x05"))]
     DawnEncrypted(Signed<TxDawnEncrypted>),
+    #[cfg_attr(feature = "serde", serde(rename = "0x6", alias = "0x06"))]
     DawnDecrypted(Signed<TxDawnDecrypted>),
 }
 

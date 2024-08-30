@@ -771,6 +771,10 @@ pub fn ensure_intrinsic_gas<T: EthPoolTransaction>(
     transaction: &T,
     fork_tracker: &ForkTracker,
 ) -> Result<(), InvalidPoolTransactionError> {
+    if transaction.tx_type() == DAWN_ENCRYPTED_TX_TYPE_ID {
+        // FIXME: ensure there's enough gas for decryption and ciphertext
+        return Ok(())
+    }
     let spec_id = if fork_tracker.is_prague_activated() {
         SpecId::PRAGUE
     } else if fork_tracker.is_shanghai_activated() {

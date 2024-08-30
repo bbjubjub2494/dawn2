@@ -13,7 +13,7 @@ use reth_primitives::{
     kzg::KzgSettings, transaction::TryFromRecoveredTransactionError, AccessList, Address,
     BlobTransactionSidecar, BlobTransactionValidationError, PooledTransactionsElement,
     PooledTransactionsElementEcRecovered, SealedBlock, Transaction, TransactionSignedEcRecovered,
-    TxHash, TxKind, B256, EIP1559_TX_TYPE_ID, EIP4844_TX_TYPE_ID, EIP7702_TX_TYPE_ID, U256,
+    TxHash, TxKind, TxType, B256, EIP1559_TX_TYPE_ID, EIP4844_TX_TYPE_ID, EIP7702_TX_TYPE_ID, U256,
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -960,6 +960,12 @@ impl EthPooledTransaction {
             Transaction::Eip7702(t) => {
                 U256::from(t.max_fee_per_gas).saturating_mul(U256::from(t.gas_limit))
             }
+            Transaction::DawnEncrypted(t) => {
+                U256::from(t.max_fee_per_gas).saturating_mul(U256::from(t.gas_limit))
+            }
+            Transaction::DawnDecrypted(t) => {
+                U256::from(t.max_fee_per_gas).saturating_mul(U256::from(t.gas_limit))
+            }
             _ => U256::ZERO,
         };
         let mut cost = transaction.value();
@@ -1055,6 +1061,8 @@ impl PoolTransaction for EthPooledTransaction {
             Transaction::Eip1559(tx) => tx.max_fee_per_gas,
             Transaction::Eip4844(tx) => tx.max_fee_per_gas,
             Transaction::Eip7702(tx) => tx.max_fee_per_gas,
+            Transaction::DawnEncrypted(tx) => tx.max_fee_per_gas,
+            Transaction::DawnDecrypted(tx) => tx.max_fee_per_gas,
             _ => 0,
         }
     }
@@ -1073,6 +1081,8 @@ impl PoolTransaction for EthPooledTransaction {
             Transaction::Eip1559(tx) => Some(tx.max_priority_fee_per_gas),
             Transaction::Eip4844(tx) => Some(tx.max_priority_fee_per_gas),
             Transaction::Eip7702(tx) => Some(tx.max_priority_fee_per_gas),
+            Transaction::DawnEncrypted(tx) => Some(tx.max_priority_fee_per_gas),
+            Transaction::DawnDecrypted(tx) => Some(tx.max_priority_fee_per_gas),
             _ => None,
         }
     }
@@ -1107,7 +1117,10 @@ impl PoolTransaction for EthPooledTransaction {
 
     /// Returns a measurement of the heap usage of this type and all its internals.
     fn size(&self) -> usize {
-        self.transaction.transaction.input().len()
+        match &self.transaction.transaction {
+            Transaction::DawnEncrypted(tx) => tx.ciphertext.payload.len(),
+            tx => tx.input().len()
+        }
     }
 
     /// Returns the transaction type
