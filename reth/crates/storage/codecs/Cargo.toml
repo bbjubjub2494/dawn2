@@ -23,6 +23,7 @@ alloy-trie = { workspace = true, optional = true }
 
 # misc
 bytes.workspace = true
+dawn_crypto.workspace = true
 modular-bitfield = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 

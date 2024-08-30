@@ -92,6 +92,34 @@ impl FillTxEnv for TransactionSigned {
                 tx_env.authorization_list =
                     Some(AuthorizationList::Signed(tx.authorization_list.clone()));
             }
+            Transaction::DawnEncrypted(tx) => {
+                tx_env.gas_limit = tx.gas_limit;
+                tx_env.gas_price = U256::from(tx.max_fee_per_gas);
+                tx_env.gas_priority_fee = Some(U256::from(tx.max_priority_fee_per_gas));
+                tx_env.transact_to = TxKind::Create;
+                tx_env.value = tx.value;
+                tx_env.data.clear();
+                tx_env.chain_id = Some(tx.chain_id);
+                tx_env.nonce = Some(tx.nonce);
+                tx_env.access_list.clone_from(&tx.access_list.0);
+                tx_env.blob_hashes.clear();
+                tx_env.max_fee_per_blob_gas.take();
+                tx_env.authorization_list = None;
+            }
+            Transaction::DawnDecrypted(tx) => {
+                tx_env.gas_limit = tx.gas_limit;
+                tx_env.gas_price = U256::from(tx.max_fee_per_gas);
+                tx_env.gas_priority_fee = Some(U256::from(tx.max_priority_fee_per_gas));
+                tx_env.transact_to = tx.to;
+                tx_env.value = tx.value;
+                tx_env.data = tx.input.clone();
+                tx_env.chain_id = Some(tx.chain_id);
+                tx_env.nonce = Some(tx.nonce);
+                tx_env.access_list.clone_from(&tx.access_list.0);
+                tx_env.blob_hashes.clear();
+                tx_env.max_fee_per_blob_gas.take();
+                tx_env.authorization_list = None;
+            }
             #[cfg(feature = "optimism")]
             Transaction::Deposit(tx) => {
                 tx_env.access_list.clear();

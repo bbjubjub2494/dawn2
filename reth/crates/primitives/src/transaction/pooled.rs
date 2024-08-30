@@ -5,6 +5,7 @@ use super::{error::TransactionConversionError, TxEip7702};
 use crate::{
     Address, BlobTransaction, BlobTransactionSidecar, Bytes, Signature, Transaction,
     TransactionSigned, TransactionSignedEcRecovered, TxEip1559, TxEip2930, TxEip4844, TxHash,
+    TxDawnEncrypted, TxDawnDecrypted,
     TxLegacy, B256, EIP4844_TX_TYPE_ID,
 };
 use alloy_rlp::{Decodable, Encodable, Error as RlpError, Header, EMPTY_LIST_CODE};
@@ -56,6 +57,23 @@ pub enum PooledTransactionsElement {
         /// The hash of the transaction
         hash: TxHash,
     },
+    /// A dawn Encrypted transaction
+    DawnEncrypted {
+        /// The inner transaction
+        transaction: TxDawnEncrypted,
+        /// The signature
+        signature: Signature,
+        /// The hash of the transaction
+        hash: TxHash,
+    },
+    DawnDecrypted {
+        /// The inner transaction
+        transaction: TxDawnDecrypted,
+        /// The signature
+        signature: Signature,
+        /// The hash of the transaction
+        hash: TxHash,
+    },
     /// A blob transaction, which includes the transaction, blob data, commitments, and proofs.
     BlobTransaction(BlobTransaction),
 }
@@ -79,6 +97,12 @@ impl PooledTransactionsElement {
             }
             TransactionSigned { transaction: Transaction::Eip7702(tx), signature, hash } => {
                 Ok(Self::Eip7702 { transaction: tx, signature, hash })
+            }
+            TransactionSigned { transaction: Transaction::DawnEncrypted(tx), signature, hash } => {
+                Ok(Self::DawnEncrypted { transaction: tx, signature, hash })
+            }
+            TransactionSigned { transaction: Transaction::DawnDecrypted(tx), signature, hash } => {
+                Ok(Self::DawnDecrypted { transaction: tx, signature, hash })
             }
             // Not supported because missing blob sidecar
             tx @ TransactionSigned { transaction: Transaction::Eip4844(_), .. } => Err(tx),
@@ -117,6 +141,8 @@ impl PooledTransactionsElement {
             Self::Eip2930 { transaction, .. } => transaction.signature_hash(),
             Self::Eip1559 { transaction, .. } => transaction.signature_hash(),
             Self::Eip7702 { transaction, .. } => transaction.signature_hash(),
+            Self::DawnEncrypted { transaction, .. } => transaction.signature_hash(),
+            Self::DawnDecrypted { transaction, .. } => transaction.signature_hash(),
             Self::BlobTransaction(blob_tx) => blob_tx.transaction.signature_hash(),
         }
     }
@@ -128,6 +154,8 @@ impl PooledTransactionsElement {
             Self::Eip2930 { hash, .. } |
             Self::Eip1559 { hash, .. } |
             Self::Eip7702 { hash, .. } => hash,
+            Self::DawnEncrypted { hash, .. } => hash,
+            Self::DawnDecrypted { hash, .. } => hash,
             Self::BlobTransaction(tx) => &tx.hash,
         }
     }
@@ -139,6 +167,8 @@ impl PooledTransactionsElement {
             Self::Eip2930 { signature, .. } |
             Self::Eip1559 { signature, .. } |
             Self::Eip7702 { signature, .. } => signature,
+            Self::DawnEncrypted { signature, .. } => signature,
+            Self::DawnDecrypted { signature, .. } => signature,
             Self::BlobTransaction(blob_tx) => &blob_tx.signature,
         }
     }
@@ -150,6 +180,8 @@ impl PooledTransactionsElement {
             Self::Eip2930 { transaction, .. } => transaction.nonce,
             Self::Eip1559 { transaction, .. } => transaction.nonce,
             Self::Eip7702 { transaction, .. } => transaction.nonce,
+            Self::DawnEncrypted { transaction, .. } => transaction.nonce,
+            Self::DawnDecrypted { transaction, .. } => transaction.nonce,
             Self::BlobTransaction(blob_tx) => blob_tx.transaction.nonce,
         }
     }
@@ -258,6 +290,16 @@ impl PooledTransactionsElement {
                         signature: typed_tx.signature,
                         hash: typed_tx.hash,
                     })},
+                    Transaction::DawnEncrypted(tx) => {Ok(Self::DawnEncrypted {
+                        transaction: tx,
+                        signature: typed_tx.signature,
+                        hash: typed_tx.hash,
+                    })},
+                    Transaction::DawnDecrypted(tx) => {Ok(Self::DawnDecrypted {
+                        transaction: tx,
+                        signature: typed_tx.signature,
+                        hash: typed_tx.hash,
+                    })},
                     #[cfg(feature = "optimism")]
                     Transaction::Deposit(_) => Err(RlpError::Custom("Optimism deposit transaction cannot be decoded to PooledTransactionsElement"))
                 }
@@ -292,6 +334,16 @@ impl PooledTransactionsElement {
                 signature,
                 hash,
             },
+            Self::DawnEncrypted { transaction, signature, hash } => TransactionSigned {
+                transaction: Transaction::DawnEncrypted(transaction),
+                signature,
+                hash,
+            },
+            Self::DawnDecrypted { transaction, signature, hash } => TransactionSigned {
+                transaction: Transaction::DawnDecrypted(transaction),
+                signature,
+                hash,
+            },
             Self::BlobTransaction(blob_tx) => blob_tx.into_parts().0,
         }
     }
@@ -312,6 +364,14 @@ impl PooledTransactionsElement {
                 transaction.payload_len_with_signature_without_header(signature)
             }
             Self::Eip7702 { transaction, signature, .. } => {
+                // method computes the payload len without a RLP header
+                transaction.payload_len_with_signature_without_header(signature)
+            }
+            Self::DawnEncrypted { transaction, signature, .. } => {
+                // method computes the payload len without a RLP header
+                transaction.payload_len_with_signature_without_header(signature)
+            }
+            Self::DawnDecrypted { transaction, signature, .. } => {
                 // method computes the payload len without a RLP header
                 transaction.payload_len_with_signature_without_header(signature)
             }
@@ -357,6 +417,12 @@ impl PooledTransactionsElement {
                 transaction.encode_with_signature(signature, out, false)
             }
             Self::Eip7702 { transaction, signature, .. } => {
+                transaction.encode_with_signature(signature, out, false)
+            }
+            Self::DawnEncrypted { transaction, signature, .. } => {
+                transaction.encode_with_signature(signature, out, false)
+            }
+            Self::DawnDecrypted { transaction, signature, .. } => {
                 transaction.encode_with_signature(signature, out, false)
             }
             Self::BlobTransaction(blob_tx) => {
@@ -444,6 +510,8 @@ impl PooledTransactionsElement {
             Self::Legacy { .. } | Self::Eip2930 { .. } => None,
             Self::Eip1559 { transaction, .. } => Some(transaction.max_priority_fee_per_gas),
             Self::Eip7702 { transaction, .. } => Some(transaction.max_priority_fee_per_gas),
+            Self::DawnEncrypted { transaction, .. } => Some(transaction.max_priority_fee_per_gas),
+            Self::DawnDecrypted { transaction, .. } => Some(transaction.max_priority_fee_per_gas),
             Self::BlobTransaction(tx) => Some(tx.transaction.max_priority_fee_per_gas),
         }
     }
@@ -457,6 +525,8 @@ impl PooledTransactionsElement {
             Self::Eip2930 { transaction, .. } => transaction.gas_price,
             Self::Eip1559 { transaction, .. } => transaction.max_fee_per_gas,
             Self::Eip7702 { transaction, .. } => transaction.max_fee_per_gas,
+            Self::DawnEncrypted { transaction, .. } => transaction.max_fee_per_gas,
+            Self::DawnDecrypted { transaction, .. } => transaction.max_fee_per_gas,
             Self::BlobTransaction(tx) => tx.transaction.max_fee_per_gas,
         }
     }
@@ -493,6 +563,14 @@ impl Encodable for PooledTransactionsElement {
                 // encodes with string header
                 transaction.encode_with_signature(signature, out, true)
             }
+            Self::DawnEncrypted { transaction, signature, .. } => {
+                // encodes with string header
+                transaction.encode_with_signature(signature, out, true)
+            }
+            Self::DawnDecrypted { transaction, signature, .. } => {
+                // encodes with string header
+                transaction.encode_with_signature(signature, out, true)
+            }
             Self::BlobTransaction(blob_tx) => {
                 // The inner encoding is used with `with_header` set to true, making the final
                 // encoding:
@@ -517,6 +595,14 @@ impl Encodable for PooledTransactionsElement {
                 transaction.payload_len_with_signature(signature)
             }
             Self::Eip7702 { transaction, signature, .. } => {
+                // method computes the payload len with a RLP header
+                transaction.payload_len_with_signature(signature)
+            }
+            Self::DawnEncrypted { transaction, signature, .. } => {
+                // method computes the payload len with a RLP header
+                transaction.payload_len_with_signature(signature)
+            }
+            Self::DawnDecrypted { transaction, signature, .. } => {
                 // method computes the payload len with a RLP header
                 transaction.payload_len_with_signature(signature)
             }
@@ -626,6 +712,16 @@ impl Decodable for PooledTransactionsElement {
                         hash: typed_tx.hash,
                     }),
                     Transaction::Eip7702(tx) => Ok(Self::Eip7702 {
+                        transaction: tx,
+                        signature: typed_tx.signature,
+                        hash: typed_tx.hash,
+                    }),
+                    Transaction::DawnEncrypted(tx) => Ok(Self::DawnEncrypted {
+                        transaction: tx,
+                        signature: typed_tx.signature,
+                        hash: typed_tx.hash,
+                    }),
+                    Transaction::DawnDecrypted(tx) => Ok(Self::DawnDecrypted {
                         transaction: tx,
                         signature: typed_tx.signature,
                         hash: typed_tx.hash,

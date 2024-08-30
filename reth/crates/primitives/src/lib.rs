@@ -71,8 +71,9 @@ pub use transaction::{
     AccessList, AccessListItem, IntoRecoveredTransaction, InvalidTransactionError, Signature,
     Transaction, TransactionMeta, TransactionSigned, TransactionSignedEcRecovered,
     TransactionSignedNoHash, TxEip1559, TxEip2930, TxEip4844, TxEip7702, TxHashOrNumber, TxLegacy,
+    TxDawnEncrypted, TxDawnDecrypted, 
     TxType, EIP1559_TX_TYPE_ID, EIP2930_TX_TYPE_ID, EIP4844_TX_TYPE_ID, EIP7702_TX_TYPE_ID,
-    LEGACY_TX_TYPE_ID,
+    LEGACY_TX_TYPE_ID, DAWN_ENCRYPTED_TX_TYPE_ID, DAWN_DECRYPTED_TX_TYPE_ID,
 };
 
 // Re-exports

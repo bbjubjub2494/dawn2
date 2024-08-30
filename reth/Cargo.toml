@@ -540,6 +540,7 @@ serial_test = "3"
 similar-asserts = "1.5.0"
 tempfile = "3.8"
 test-fuzz = "5"
+dawn_crypto.path = "../libs/dawn_crypto"
 
 [patch.crates-io]
 alloy-consensus = { path = "../libs/alloy/crates/consensus" }

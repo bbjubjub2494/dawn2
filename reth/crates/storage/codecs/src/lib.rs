@@ -22,6 +22,8 @@ pub use reth_codecs_derive::*;
 use alloy_primitives::{Address, Bloom, Bytes, FixedBytes, U256};
 use bytes::{Buf, BufMut};
 
+use dawn_crypto::{Ciphertext, DecryptionKey, EphemeralPublicKey};
+
 #[cfg(not(feature = "std"))]
 extern crate alloc;
 #[cfg(not(feature = "std"))]
@@ -737,5 +739,64 @@ mod tests {
         let var2 = TestEnum::Var2(1u64);
 
         compact_test_enum_all_variants(var0, var1, var2);
+    }
+}
+
+impl Compact for Ciphertext {
+        fn to_compact<B>(&self, buf: &mut B) -> usize
+    where
+        B: bytes::BufMut + AsMut<[u8]>,
+    {
+        buf.put_slice(&self.u.0);
+        buf.put_slice(&self.payload);
+        buf.put_slice(&self.tag);
+        self.u.0.len() + self.payload.len() + self.tag.len()
+    }
+
+
+    fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8])
+    {
+        let mut u = EphemeralPublicKey([0; 96]);
+        let mut tag = [0; 16];
+        u.0.copy_from_slice(&buf[..96]);
+        tag.copy_from_slice(&buf[len-16..]);
+        let payload = buf[96..len-16].to_vec();
+        (Self { u, payload, tag }, &buf[len..])
+    }
+}
+
+impl Compact for DecryptionKey {
+        fn to_compact<B>(&self, buf: &mut B) -> usize
+    where
+        B: bytes::BufMut + AsMut<[u8]>,
+    {
+        buf.put_slice(&self.0);
+        self.0.len()
+    }
+
+
+    fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8])
+    {
+        let mut key = [0; 48];
+        key.copy_from_slice(&buf[..48]);
+        (Self(key), &buf[48..])
+    }
+}
+
+impl Compact for EphemeralPublicKey {
+        fn to_compact<B>(&self, buf: &mut B) -> usize
+    where
+        B: bytes::BufMut + AsMut<[u8]>,
+    {
+        buf.put_slice(&self.0);
+        self.0.len()
+    }
+
+
+    fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8])
+    {
+        let mut key = [0; 96];
+        key.copy_from_slice(&buf[..96]);
+        (Self(key), &buf[96..])
     }
 }

@@ -478,6 +478,12 @@ impl<'a> ReceiptWithBloomEncoder<'a> {
             TxType::Eip7702 => {
                 out.put_u8(0x04);
             }
+            TxType::DawnEncrypted => {
+                out.put_u8(0x05);
+            }
+            TxType::DawnDecrypted => {
+                out.put_u8(0x06);
+            }
             #[cfg(feature = "optimism")]
             TxType::Deposit => {
                 out.put_u8(0x7E);

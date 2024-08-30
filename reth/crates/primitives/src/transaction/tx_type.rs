@@ -27,6 +27,9 @@ pub const EIP4844_TX_TYPE_ID: u8 = 3;
 /// Identifier for [`TxEip7702`](crate::TxEip7702) transaction.
 pub const EIP7702_TX_TYPE_ID: u8 = 4;
 
+pub const DAWN_ENCRYPTED_TX_TYPE_ID: u8 = 5;
+pub const DAWN_DECRYPTED_TX_TYPE_ID: u8 = 6;
+
 /// Identifier for [`TxDeposit`](crate::TxDeposit) transaction.
 #[cfg(feature = "optimism")]
 pub const DEPOSIT_TX_TYPE_ID: u8 = 126;
@@ -54,6 +57,10 @@ pub enum TxType {
     Eip4844 = 3_isize,
     /// EOA Contract Code Transactions - EIP-7702
     Eip7702 = 4_isize,
+    /// Dawn Encrypted transaction type.
+    DawnEncrypted = 5_isize,
+    /// Dawn Decrypted transaction type.
+    DawnDecrypted = 6_isize,
     /// Optimism Deposit transaction.
     #[cfg(feature = "optimism")]
     Deposit = 126_isize,
@@ -68,6 +75,7 @@ impl TxType {
         match self {
             Self::Legacy => false,
             Self::Eip2930 | Self::Eip1559 | Self::Eip4844 | Self::Eip7702 => true,
+            Self::DawnEncrypted | Self::DawnDecrypted => true,
             #[cfg(feature = "optimism")]
             Self::Deposit => false,
         }
@@ -82,6 +90,8 @@ impl From<TxType> for u8 {
             TxType::Eip1559 => EIP1559_TX_TYPE_ID,
             TxType::Eip4844 => EIP4844_TX_TYPE_ID,
             TxType::Eip7702 => EIP7702_TX_TYPE_ID,
+            TxType::DawnEncrypted => 5,
+            TxType::DawnDecrypted => 6,
             #[cfg(feature = "optimism")]
             TxType::Deposit => DEPOSIT_TX_TYPE_ID,
         }
@@ -113,6 +123,10 @@ impl TryFrom<u8> for TxType {
             return Ok(Self::Eip4844)
         } else if value == Self::Eip7702 {
             return Ok(Self::Eip7702)
+        } else if value == Self::DawnEncrypted {
+            return Ok(Self::DawnEncrypted)
+        } else if value == Self::DawnDecrypted {
+            return Ok(Self::DawnDecrypted)
         }
 
         Err("invalid tx type")
@@ -151,6 +165,14 @@ impl reth_codecs::Compact for TxType {
                 COMPACT_EXTENDED_IDENTIFIER_FLAG
             }
             Self::Eip7702 => {
+                buf.put_u8(*self as u8);
+                COMPACT_EXTENDED_IDENTIFIER_FLAG
+            }
+            Self::DawnEncrypted => {
+                buf.put_u8(*self as u8);
+                COMPACT_EXTENDED_IDENTIFIER_FLAG
+            }
+            Self::DawnDecrypted => {
                 buf.put_u8(*self as u8);
                 COMPACT_EXTENDED_IDENTIFIER_FLAG
             }

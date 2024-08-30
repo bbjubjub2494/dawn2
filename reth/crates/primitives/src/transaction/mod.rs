@@ -20,6 +20,8 @@ pub use eip1559::TxEip1559;
 pub use eip2930::TxEip2930;
 pub use eip4844::TxEip4844;
 pub use eip7702::TxEip7702;
+pub use dawn_encrypted::TxDawnEncrypted;
+pub use dawn_decrypted::TxDawnDecrypted;
 
 pub use error::{
     InvalidTransactionError, TransactionConversionError, TryFromRecoveredTransactionError,
@@ -37,7 +39,7 @@ pub use compat::FillTxEnv;
 pub use signature::{extract_chain_id, Signature};
 pub use tx_type::{
     TxType, EIP1559_TX_TYPE_ID, EIP2930_TX_TYPE_ID, EIP4844_TX_TYPE_ID, EIP7702_TX_TYPE_ID,
-    LEGACY_TX_TYPE_ID,
+    LEGACY_TX_TYPE_ID, DAWN_ENCRYPTED_TX_TYPE_ID, DAWN_DECRYPTED_TX_TYPE_ID,
 };
 pub use variant::TransactionSignedVariant;
 
@@ -47,6 +49,8 @@ mod eip1559;
 mod eip2930;
 mod eip4844;
 mod eip7702;
+mod dawn_encrypted;
+mod dawn_decrypted;
 mod error;
 mod legacy;
 mod meta;
@@ -134,6 +138,8 @@ pub enum Transaction {
     /// EOA for a single transaction. This allows for temporarily adding smart contract
     /// functionality to the EOA.
     Eip7702(TxEip7702),
+    DawnEncrypted(TxDawnEncrypted),
+    DawnDecrypted(TxDawnDecrypted),
     /// Optimism deposit transaction.
     #[cfg(feature = "optimism")]
     Deposit(TxDeposit),
@@ -151,6 +157,8 @@ impl Transaction {
             Self::Eip1559(tx) => tx.signature_hash(),
             Self::Eip4844(tx) => tx.signature_hash(),
             Self::Eip7702(tx) => tx.signature_hash(),
+            Self::DawnEncrypted(tx) => tx.signature_hash(),
+            Self::DawnDecrypted(tx) => tx.signature_hash(),
             #[cfg(feature = "optimism")]
             Self::Deposit(_) => B256::ZERO,
         }
@@ -163,7 +171,9 @@ impl Transaction {
             Self::Eip2930(TxEip2930 { chain_id, .. }) |
             Self::Eip1559(TxEip1559 { chain_id, .. }) |
             Self::Eip4844(TxEip4844 { chain_id, .. }) |
-            Self::Eip7702(TxEip7702 { chain_id, .. }) => Some(*chain_id),
+            Self::Eip7702(TxEip7702 { chain_id, .. }) |
+            Self::DawnEncrypted(TxDawnEncrypted { chain_id, .. }) => Some(*chain_id),
+            Self::DawnDecrypted(TxDawnDecrypted { chain_id, .. }) => Some(*chain_id),
             #[cfg(feature = "optimism")]
             Self::Deposit(_) => None,
         }
@@ -176,7 +186,9 @@ impl Transaction {
             Self::Eip2930(TxEip2930 { chain_id: ref mut c, .. }) |
             Self::Eip1559(TxEip1559 { chain_id: ref mut c, .. }) |
             Self::Eip4844(TxEip4844 { chain_id: ref mut c, .. }) |
-            Self::Eip7702(TxEip7702 { chain_id: ref mut c, .. }) => *c = chain_id,
+            Self::Eip7702(TxEip7702 { chain_id: ref mut c, .. }) |
+            Self::DawnEncrypted(TxDawnEncrypted { chain_id: ref mut c, .. }) => *c = chain_id,
+            Self::DawnDecrypted(TxDawnDecrypted { chain_id: ref mut c, .. }) => *c = chain_id,
             #[cfg(feature = "optimism")]
             Self::Deposit(_) => { /* noop */ }
         }
@@ -190,6 +202,8 @@ impl Transaction {
             Self::Eip2930(TxEip2930 { to, .. }) |
             Self::Eip1559(TxEip1559 { to, .. }) |
             Self::Eip7702(TxEip7702 { to, .. }) => *to,
+            Self::DawnEncrypted(_) => TxKind::Create, // FIXME: not really true
+            Self::DawnDecrypted(_) => TxKind::Create, // FIXME: not really true
             Self::Eip4844(TxEip4844 { to, .. }) => TxKind::Call(*to),
             #[cfg(feature = "optimism")]
             Self::Deposit(TxDeposit { to, .. }) => *to,
@@ -212,6 +226,8 @@ impl Transaction {
             Self::Eip1559(dynamic_fee_tx) => dynamic_fee_tx.tx_type(),
             Self::Eip4844(blob_tx) => blob_tx.tx_type(),
             Self::Eip7702(set_code_tx) => set_code_tx.tx_type(),
+            Self::DawnEncrypted(encrypted_tx) => encrypted_tx.tx_type(),
+            Self::DawnDecrypted(encrypted_tx) => encrypted_tx.tx_type(),
             #[cfg(feature = "optimism")]
             Self::Deposit(deposit_tx) => deposit_tx.tx_type(),
         }
@@ -224,7 +240,9 @@ impl Transaction {
             Self::Eip2930(TxEip2930 { value, .. }) |
             Self::Eip1559(TxEip1559 { value, .. }) |
             Self::Eip4844(TxEip4844 { value, .. }) |
-            Self::Eip7702(TxEip7702 { value, .. }) => value,
+            Self::Eip7702(TxEip7702 { value, .. }) |
+            Self::DawnEncrypted(TxDawnEncrypted { value, .. }) => value,
+            Self::DawnDecrypted(TxDawnDecrypted { value, .. }) => value,
             #[cfg(feature = "optimism")]
             Self::Deposit(TxDeposit { value, .. }) => value,
         }
@@ -237,7 +255,9 @@ impl Transaction {
             Self::Eip2930(TxEip2930 { nonce, .. }) |
             Self::Eip1559(TxEip1559 { nonce, .. }) |
             Self::Eip4844(TxEip4844 { nonce, .. }) |
-            Self::Eip7702(TxEip7702 { nonce, .. }) => *nonce,
+            Self::Eip7702(TxEip7702 { nonce, .. }) |
+            Self::DawnEncrypted(TxDawnEncrypted { nonce, .. }) => *nonce,
+            Self::DawnDecrypted(TxDawnDecrypted { nonce, .. }) => *nonce,
             // Deposit transactions do not have nonces.
             #[cfg(feature = "optimism")]
             Self::Deposit(_) => 0,
@@ -254,6 +274,8 @@ impl Transaction {
             Self::Eip1559(tx) => Some(&tx.access_list),
             Self::Eip4844(tx) => Some(&tx.access_list),
             Self::Eip7702(tx) => Some(&tx.access_list),
+            Self::DawnEncrypted(tx) => Some(&tx.access_list),
+            Self::DawnDecrypted(tx) => Some(&tx.access_list),
             #[cfg(feature = "optimism")]
             Self::Deposit(_) => None,
         }
@@ -276,7 +298,9 @@ impl Transaction {
             Self::Eip2930(TxEip2930 { gas_limit, .. }) |
             Self::Eip1559(TxEip1559 { gas_limit, .. }) |
             Self::Eip4844(TxEip4844 { gas_limit, .. }) |
-            Self::Eip7702(TxEip7702 { gas_limit, .. }) => *gas_limit,
+            Self::Eip7702(TxEip7702 { gas_limit, .. }) |
+            Self::DawnEncrypted(TxDawnEncrypted { gas_limit, .. }) => *gas_limit,
+            Self::DawnDecrypted(TxDawnDecrypted { gas_limit, .. }) => *gas_limit,
             #[cfg(feature = "optimism")]
             Self::Deposit(TxDeposit { gas_limit, .. }) => *gas_limit,
         }
@@ -286,7 +310,8 @@ impl Transaction {
     pub const fn is_dynamic_fee(&self) -> bool {
         match self {
             Self::Legacy(_) | Self::Eip2930(_) => false,
-            Self::Eip1559(_) | Self::Eip4844(_) | Self::Eip7702(_) => true,
+            Self::Eip1559(_) | Self::Eip4844(_) | Self::Eip7702(_) |
+                Self::DawnEncrypted(_) | Self::DawnDecrypted(_) => true,
             #[cfg(feature = "optimism")]
             Self::Deposit(_) => false,
         }
@@ -301,7 +326,9 @@ impl Transaction {
             Self::Eip2930(TxEip2930 { gas_price, .. }) => *gas_price,
             Self::Eip1559(TxEip1559 { max_fee_per_gas, .. }) |
             Self::Eip4844(TxEip4844 { max_fee_per_gas, .. }) |
-            Self::Eip7702(TxEip7702 { max_fee_per_gas, .. }) => *max_fee_per_gas,
+            Self::Eip7702(TxEip7702 { max_fee_per_gas, .. }) |
+            Self::DawnEncrypted(TxDawnEncrypted { max_fee_per_gas, .. }) => *max_fee_per_gas,
+            Self::DawnDecrypted(TxDawnDecrypted { max_fee_per_gas, .. }) => *max_fee_per_gas,
             // Deposit transactions buy their L2 gas on L1 and, as such, the L2 gas is not
             // refundable.
             #[cfg(feature = "optimism")]
@@ -318,7 +345,9 @@ impl Transaction {
             Self::Legacy(_) | Self::Eip2930(_) => None,
             Self::Eip1559(TxEip1559 { max_priority_fee_per_gas, .. }) |
             Self::Eip4844(TxEip4844 { max_priority_fee_per_gas, .. }) |
-            Self::Eip7702(TxEip7702 { max_priority_fee_per_gas, .. }) => {
+            Self::Eip7702(TxEip7702 { max_priority_fee_per_gas, .. }) |
+            Self::DawnEncrypted(TxDawnEncrypted { max_priority_fee_per_gas, .. }) |
+            Self::DawnDecrypted(TxDawnDecrypted { max_priority_fee_per_gas, .. }) => {
                 Some(*max_priority_fee_per_gas)
             }
             #[cfg(feature = "optimism")]
@@ -332,7 +361,8 @@ impl Transaction {
     /// This is also commonly referred to as the "blob versioned hashes" (`BlobVersionedHashes`).
     pub fn blob_versioned_hashes(&self) -> Option<Vec<B256>> {
         match self {
-            Self::Legacy(_) | Self::Eip2930(_) | Self::Eip1559(_) | Self::Eip7702(_) => None,
+            Self::Legacy(_) | Self::Eip2930(_) | Self::Eip1559(_) | Self::Eip7702(_)
+                | Self::DawnEncrypted(_) | Self::DawnDecrypted(_) => None,
             Self::Eip4844(TxEip4844 { blob_versioned_hashes, .. }) => {
                 Some(blob_versioned_hashes.to_vec())
             }
@@ -376,6 +406,8 @@ impl Transaction {
             Self::Eip1559(TxEip1559 { max_priority_fee_per_gas, .. }) |
             Self::Eip4844(TxEip4844 { max_priority_fee_per_gas, .. }) |
             Self::Eip7702(TxEip7702 { max_priority_fee_per_gas, .. }) => *max_priority_fee_per_gas,
+            Self::DawnEncrypted(TxDawnEncrypted { max_priority_fee_per_gas, .. }) => *max_priority_fee_per_gas,
+            Self::DawnDecrypted(TxDawnDecrypted { max_priority_fee_per_gas, .. }) => *max_priority_fee_per_gas,
             #[cfg(feature = "optimism")]
             Self::Deposit(_) => 0,
         }
@@ -391,6 +423,8 @@ impl Transaction {
             Self::Eip1559(dynamic_tx) => dynamic_tx.effective_gas_price(base_fee),
             Self::Eip4844(dynamic_tx) => dynamic_tx.effective_gas_price(base_fee),
             Self::Eip7702(dynamic_tx) => dynamic_tx.effective_gas_price(base_fee),
+            Self::DawnEncrypted(dynamic_tx) => dynamic_tx.effective_gas_price(base_fee),
+            Self::DawnDecrypted(dynamic_tx) => dynamic_tx.effective_gas_price(base_fee),
             #[cfg(feature = "optimism")]
             Self::Deposit(_) => 0,
         }
@@ -435,6 +469,8 @@ impl Transaction {
             Self::Eip1559(TxEip1559 { input, .. }) |
             Self::Eip4844(TxEip4844 { input, .. }) |
             Self::Eip7702(TxEip7702 { input, .. }) => input,
+            Self::DawnEncrypted(_) => panic!("encrypted transaction has no input"),
+            Self::DawnDecrypted(TxDawnDecrypted { input, .. }) => input,
             #[cfg(feature = "optimism")]
             Self::Deposit(TxDeposit { input, .. }) => input,
         }
@@ -505,6 +541,12 @@ impl Transaction {
             Self::Eip7702(set_code_tx) => {
                 set_code_tx.encode_with_signature(signature, out, with_header)
             }
+            Self::DawnEncrypted(encrypted_tx) => {
+                encrypted_tx.encode_with_signature(signature, out, with_header)
+            }
+            Self::DawnDecrypted(encrypted_tx) => {
+                encrypted_tx.encode_with_signature(signature, out, with_header)
+            }
             #[cfg(feature = "optimism")]
             Self::Deposit(deposit_tx) => deposit_tx.encode(out, with_header),
         }
@@ -518,6 +560,8 @@ impl Transaction {
             Self::Eip1559(tx) => tx.gas_limit = gas_limit,
             Self::Eip4844(tx) => tx.gas_limit = gas_limit,
             Self::Eip7702(tx) => tx.gas_limit = gas_limit,
+            Self::DawnEncrypted(tx) => tx.gas_limit = gas_limit,
+            Self::DawnDecrypted(tx) => tx.gas_limit = gas_limit,
             #[cfg(feature = "optimism")]
             Self::Deposit(tx) => tx.gas_limit = gas_limit,
         }
@@ -531,6 +575,8 @@ impl Transaction {
             Self::Eip1559(tx) => tx.nonce = nonce,
             Self::Eip4844(tx) => tx.nonce = nonce,
             Self::Eip7702(tx) => tx.nonce = nonce,
+            Self::DawnEncrypted(tx) => tx.nonce = nonce,
+            Self::DawnDecrypted(tx) => tx.nonce = nonce,
             #[cfg(feature = "optimism")]
             Self::Deposit(_) => { /* noop */ }
         }
@@ -544,6 +590,8 @@ impl Transaction {
             Self::Eip1559(tx) => tx.value = value,
             Self::Eip4844(tx) => tx.value = value,
             Self::Eip7702(tx) => tx.value = value,
+            Self::DawnEncrypted(tx) => tx.value = value,
+            Self::DawnDecrypted(tx) => tx.value = value,
             #[cfg(feature = "optimism")]
             Self::Deposit(tx) => tx.value = value,
         }
@@ -557,6 +605,8 @@ impl Transaction {
             Self::Eip1559(tx) => tx.input = input,
             Self::Eip4844(tx) => tx.input = input,
             Self::Eip7702(tx) => tx.input = input,
+            Self::DawnEncrypted(tx) => panic!("cannot set input on encrypted transaction"),
+            Self::DawnDecrypted(tx) => tx.input = input,
             #[cfg(feature = "optimism")]
             Self::Deposit(tx) => tx.input = input,
         }
@@ -571,6 +621,8 @@ impl Transaction {
             Self::Eip1559(tx) => tx.size(),
             Self::Eip4844(tx) => tx.size(),
             Self::Eip7702(tx) => tx.size(),
+            Self::DawnEncrypted(tx) => tx.size(),
+            Self::DawnDecrypted(tx) => tx.size(),
             #[cfg(feature = "optimism")]
             Self::Deposit(tx) => tx.size(),
         }
@@ -702,6 +754,12 @@ impl reth_codecs::Compact for Transaction {
             Self::Eip7702(tx) => {
                 tx.to_compact(buf);
             }
+            Self::DawnEncrypted(tx) => {
+                tx.to_compact(buf);
+            }
+            Self::DawnDecrypted(tx) => {
+                tx.to_compact(buf);
+            }
             #[cfg(feature = "optimism")]
             Self::Deposit(tx) => {
                 tx.to_compact(buf);
@@ -787,6 +845,12 @@ impl Encodable for Transaction {
             Self::Eip7702(set_code_tx) => {
                 set_code_tx.encode_for_signing(out);
             }
+            Self::DawnEncrypted(encrypted_tx) => {
+                encrypted_tx.encode_for_signing(out);
+            }
+            Self::DawnDecrypted(encrypted_tx) => {
+                encrypted_tx.encode_for_signing(out);
+            }
             #[cfg(feature = "optimism")]
             Self::Deposit(deposit_tx) => {
                 deposit_tx.encode(out, true);
@@ -801,6 +865,8 @@ impl Encodable for Transaction {
             Self::Eip1559(dynamic_fee_tx) => dynamic_fee_tx.payload_len_for_signature(),
             Self::Eip4844(blob_tx) => blob_tx.payload_len_for_signature(),
             Self::Eip7702(set_code_tx) => set_code_tx.payload_len_for_signature(),
+            Self::DawnEncrypted(encrypted_tx) => encrypted_tx.payload_len_for_signature(),
+            Self::DawnDecrypted(encrypted_tx) => encrypted_tx.payload_len_for_signature(),
             #[cfg(feature = "optimism")]
             Self::Deposit(deposit_tx) => deposit_tx.payload_len(),
         }
@@ -1183,6 +1249,12 @@ impl TransactionSigned {
             Transaction::Eip7702(set_code_tx) => {
                 set_code_tx.payload_len_with_signature(&self.signature)
             }
+            Transaction::DawnEncrypted(encrypted_tx) => {
+                encrypted_tx.payload_len_with_signature(&self.signature)
+            }
+            Transaction::DawnDecrypted(encrypted_tx) => {
+                encrypted_tx.payload_len_with_signature(&self.signature)
+            }
             #[cfg(feature = "optimism")]
             Transaction::Deposit(deposit_tx) => deposit_tx.payload_len(),
         }
@@ -1310,6 +1382,8 @@ impl TransactionSigned {
             TxType::Eip1559 => Transaction::Eip1559(TxEip1559::decode_inner(data)?),
             TxType::Eip4844 => Transaction::Eip4844(TxEip4844::decode_inner(data)?),
             TxType::Eip7702 => Transaction::Eip7702(TxEip7702::decode_inner(data)?),
+            TxType::DawnEncrypted => Transaction::DawnEncrypted(TxDawnEncrypted::decode_inner(data)?),
+            TxType::DawnDecrypted => Transaction::DawnDecrypted(TxDawnDecrypted::decode_inner(data)?),
             #[cfg(feature = "optimism")]
             TxType::Deposit => Transaction::Deposit(TxDeposit::decode_inner(data)?),
             TxType::Legacy => return Err(RlpError::Custom("unexpected legacy tx type")),
@@ -1388,6 +1462,12 @@ impl TransactionSigned {
             }
             Transaction::Eip7702(set_code_tx) => {
                 set_code_tx.payload_len_with_signature_without_header(&self.signature)
+            }
+            Transaction::DawnEncrypted(encrypted_tx) => {
+                encrypted_tx.payload_len_with_signature_without_header(&self.signature)
+            }
+            Transaction::DawnDecrypted(encrypted_tx) => {
+                encrypted_tx.payload_len_with_signature_without_header(&self.signature)
             }
             #[cfg(feature = "optimism")]
             Transaction::Deposit(deposit_tx) => deposit_tx.payload_len_without_header(),

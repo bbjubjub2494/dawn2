@@ -48,6 +48,7 @@ once_cell.workspace = true
 tempfile = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 zstd = { workspace = true, features = ["experimental"], optional = true }
+dawn_crypto.workspace = true
 
 # arbitrary utils
 arbitrary = { workspace = true, features = ["derive"], optional = true }
