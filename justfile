@@ -29,7 +29,7 @@ build-scenario: build-contracts
   cd scenario && cargo build
 
 build-reth:
-  cd reth && cargo build
+  cd reth && cargo build --bin reth
 
 build-contracts:
   cd contracts && forge build
